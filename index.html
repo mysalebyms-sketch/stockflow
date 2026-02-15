@@ -501,6 +501,15 @@ function renderAdminOrderDetail() {
         `).join("") || "<p>— ไม่มีประวัติ —</p>"}
       </div>
 
+ <div class="dpi-selector">
+   DPI:
+   <select onchange="setDpiScale(this.value)">
+     <option value="1">1×</option>
+     <option value="2" selected>2×</option>
+     <option value="3">3×</option>
+   </select>
+ </div>
+
  <button onclick="exportOrderPNG('${order.id}')">🖼️ Export PNG</button>
  <button onclick="printOrder('${order.id}')">🖨️ Export / Print (A4)</button>
 
@@ -532,6 +541,19 @@ const AUDIT_ACTION = {
     /* ===============================
        EVENT HANDLERS
     =============================== */
+
+const DPI_PRESETS = {
+  "1x": 1,
+  "2x": 2,
+  "3x": 3
+};
+
+let selectedDpiScale = 2; // default = 2x
+
+function setDpiScale(value) {
+  selectedDpiScale = Number(value) || 2;
+}
+    
 const PNG_A4_PRESET = {
   width: 794,   // A4 @ 96dpi
   height: 1123,
@@ -584,7 +606,7 @@ function exportOrderPNG(orderId) {
   const order = state.orders.find(o => o.id === orderId);
   if (!order) return;
 
-  const scale = window.devicePixelRatio || 2;
+  const scale = selectedDpiScale;
   
   const container = buildOrderPNGContainer(order);
   container.style.position = "absolute";
