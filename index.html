@@ -421,6 +421,7 @@ function renderAdminOrders() {
    .map((order, index) => `
           <div class="order-card" onclick="openOrderDetail('${order.id}')">
             <div>Order #${index + 1}</div>
+            <div>สถานะ: ${order.status || "unknown"}</div>
             <div>จำนวนสินค้า: ${order.items.length}</div>
             <div>ยอดรวม: ${order.total}</div>
           </div>
@@ -480,6 +481,14 @@ function renderAdminOrderDetail() {
       <div class="order-total">
         รวมทั้งหมด: ${order.total}
       </div>
+
+   ${order.status === "new" ? `
+   <button onclick="markOrderPaid('${order.id}')">💰 Mark as Paid</button>
+ ` : ""}
+
+ ${order.status === "paid" ? `
+   <button onclick="markOrderShipped('${order.id}')">🚚 Mark as Shipped</button>
+ ` : ""}
 
       <div class="order-audit-log">
         <h4>🧾 Audit Trail</h4>
@@ -628,6 +637,7 @@ state.orders.push({
       createdAt: Date.now(),
       archived: false,
       audit: [],
+      status: "new",
       items: [...state.cart],
       total: state.cart.reduce(
         (sum, item) => sum + item.price * item.qty,
@@ -688,7 +698,30 @@ function restoreOrder(orderId) {
   saveOrders();
   alert("♻️ Order ถูก Restore แล้ว");
   renderAdminOrders();
-}    
+} 
+
+function markOrderPaid(orderId) {
+  if (!requireAdmin()) return;
+  const order = state.orders.find(o => o.id === orderId);
+  if (!order || order.status !== "new") return;
+
+  logAudit(order, "mark_paid");
+  order.status = "paid";
+  saveOrders();
+  renderAdminOrderDetail();
+}
+
+function markOrderShipped(orderId) {
+  if (!requireAdmin()) return;
+  const order = state.orders.find(o => o.id === orderId);
+  if (!order || order.status !== "paid") return;
+
+  logAudit(order, "mark_shipped");
+  order.status = "shipped";
+  saveOrders();
+  renderAdminOrderDetail();
+}
+    
   </script>
 
   <script>
