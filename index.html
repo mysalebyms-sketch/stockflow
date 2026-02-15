@@ -591,30 +591,46 @@ function exportOrderPNG(orderId) {
   container.style.left = "-9999px";
   document.body.appendChild(container);
 
-  const canvas = document.createElement("canvas");
-  canvas.width = PNG_A4_PRESET.width * scale;
-  canvas.height = PNG_A4_PRESET.height * scale;
+  const contentHeight = container.scrollHeight;
+  const pageHeight = PNG_A4_PRESET.height;
+  const pageCount = Math.ceil(contentHeight / pageHeight);
 
-  canvas.style.width = PNG_A4_PRESET.width + "px";
-  canvas.style.height = PNG_A4_PRESET.height + "px";
+ const img = svgToImage(container, PNG_A4_PRESET.width * scale, contentHeight * scale);
+ img.onload = () => {
+   for (let page = 0; page < pageCount; page++) {
+     const canvas = document.createElement("canvas");
+     canvas.width = PNG_A4_PRESET.width * scale;
+     canvas.height = PNG_A4_PRESET.height * scale;
 
-  const ctx = canvas.getContext("2d");
-  ctx.scale(scale, scale);
-  ctx.fillStyle = "#fff";
-  ctx.fillRect(0, 0, PNG_A4_PRESET.width, PNG_A4_PRESET.height);
+     canvas.style.width = PNG_A4_PRESET.width + "px";
+     canvas.style.height = PNG_A4_PRESET.height + "px";
 
-  const img = svgToImage(container, canvas.width, canvas.height);
-  img.onload = () => {
-    ctx.drawImage(img, 0, 0, PNG_A4_PRESET.width, PNG_A4_PRESET.height);
+     const ctx = canvas.getContext("2d");
+     ctx.scale(scale, scale);
+     ctx.fillStyle = "#fff";
+     ctx.fillRect(0, 0, PNG_A4_PRESET.width, PNG_A4_PRESET.height);
 
-    const a = document.createElement("a");
-    a.download = `order-${order.id}.png`;
-    a.href = canvas.toDataURL("image/png");
-    a.click();
+     const offsetY = page * pageHeight;
+     ctx.save();
+     ctx.translate(0, -offsetY);
+     ctx.drawImage(
+       img,
+       0,
+       0,
+       PNG_A4_PRESET.width,
+       contentHeight
+     );
+     ctx.restore();
 
-    document.body.removeChild(container);
-  };
-}
+     const a = document.createElement("a");
+     a.download = `order-${order.id}-page-${page + 1}.png`;
+     a.href = canvas.toDataURL("image/png");
+     a.click();
+   }
+
+   document.body.removeChild(container);
+ };
+}  
        
 function requireAdmin() {
   if (!state.admin.loggedIn) {
