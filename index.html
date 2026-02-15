@@ -481,6 +481,17 @@ function renderAdminOrderDetail() {
         รวมทั้งหมด: ${order.total}
       </div>
 
+      <div class="order-audit-log">
+        <h4>🧾 Audit Trail</h4>
+        ${(order.audit || []).map(log => `
+          <div class="audit-item">
+            <span>${log.action}</span>
+            <span>by ${log.by}</span>
+            <span>${new Date(log.at).toLocaleString()}</span>
+          </div>
+        `).join("") || "<p>— ไม่มีประวัติ —</p>"}
+      </div>
+
       <button class="danger" onclick="archiveOrder('${order.id}')">🗑️ Archive</button>
 
       <button onclick="renderAdminOrders()">← กลับรายการ</button>
@@ -616,6 +627,7 @@ state.orders.push({
       id: `ORD-${Date.now()}`,
       createdAt: Date.now(),
       archived: false,
+      audit: [],
       items: [...state.cart],
       total: state.cart.reduce(
         (sum, item) => sum + item.price * item.qty,
@@ -638,6 +650,18 @@ function resetAfterOrder() {
   state.view.qty = 1;
 }
 
+function logAudit(order, action) {
+  if (!Array.isArray(order.audit)) {
+    order.audit = [];
+  }
+
+  order.audit.push({
+    action,
+    by: state.admin.user || "unknown",
+    at: Date.now()
+  });
+}
+    
 function archiveOrder(orderId) {
   if (!requireAdmin()) return;
 
@@ -646,6 +670,8 @@ function archiveOrder(orderId) {
   
   const order = state.orders.find(o => o.id === orderId);
   if (!order) return;
+  
+  logAudit(order, "archive");
   order.archived = true;
   saveOrders();
   alert("📦 Order ถูก Archive แล้ว");
@@ -656,6 +682,8 @@ function restoreOrder(orderId) {
   if (!requireAdmin()) return;
   const order = state.orders.find(o => o.id === orderId);
   if (!order) return;
+
+  logAudit(order, "restore");
   order.archived = false;
   saveOrders();
   alert("♻️ Order ถูก Restore แล้ว");
