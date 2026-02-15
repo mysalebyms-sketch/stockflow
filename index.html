@@ -90,8 +90,8 @@ function loadOrders() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      state.orders = parsed;
+        if (parsed && parsed.version === 1 && Array.isArray(parsed.orders)) {
+      state.orders = parsed.orders;
     }
   } catch (e) {
     console.warn("Failed to load orders", e);
@@ -102,7 +102,10 @@ function saveOrders() {
   try {
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify(state.orders)
+      JSON.stringify({
+        version: 1,
+        orders: state.orders
+      })
     );
   } catch (e) {
     console.warn("Failed to save orders", e);
@@ -576,7 +579,9 @@ function submitOrderAPI() {
   // mock API
   setTimeout(() => {
     // success
-    state.orders.push({
+state.orders.push({
+      id: `ORD-${Date.now()}`,
+      createdAt: Date.now(),
       items: [...state.cart],
       total: state.cart.reduce(
         (sum, item) => sum + item.price * item.qty,
