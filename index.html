@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <!-- =================================================
+       META / CONFIG
+  ================================================== -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Stock Viewer v2</title>
+
+  <!-- =================================================
+       DESIGN TOKENS (LOCKED)
+  ================================================== -->
+  <style id="tokens">
+    :root {
+      /* colors */
+      --primary: #2563EB;
+      --success: #16A34A;
+      --warning: #F59E0B;
+      --danger:  #DC2626;
+
+      --gray-900: #111827;
+      --gray-600: #4B5563;
+      --gray-400: #9CA3AF;
+      --gray-200: #E5E7EB;
+      --gray-100: #F3F4F6;
+      --white: #FFFFFF;
+
+      /* radius */
+      --r-sm: 8px;
+      --r-md: 12px;
+      --r-lg: 16px;
+
+      /* shadow */
+      --shadow-card: 0 6px 18px rgba(0,0,0,.08);
+      --shadow-float: 0 10px 32px rgba(0,0,0,.12);
+    }
+  </style>
+
+  <!-- =================================================
+       BASE / RESET
+  ================================================== -->
+  <style id="base-style">
+    /* reset + body + typography */
+  </style>
+
+  <!-- =================================================
+       COMPONENT STYLES
+  ================================================== -->
+  <style id="components-style">
+    /* card / button / badge / sheet / input */
+  </style>
+
+  <!-- =================================================
+       VIEWER v2 STYLES
+  ================================================== -->
+  <style id="viewer-style">
+    /* screen-specific layout */
+  </style>
+</head>
+
+<body>
+
+  <!-- =================================================
+       APP ROOT
+  ================================================== -->
+  <header id="app-header"></header>
+  <main id="app"></main>
+
+  <!-- global backdrop -->
+  <div id="backdrop"></div>
+
+  <!-- sheets -->
+  <div id="product-sheet" class="sheet"></div>
+  <div id="qty-sheet" class="sheet"></div>
+  <div id="cart-sheet" class="sheet"></div>
+  <div id="login-sheet" class="sheet"></div>
+
+  <!-- =================================================
+       SCRIPT
+  ================================================== -->
+  <script>
+    /* ===============================
+       GLOBAL STATE (SINGLE SOURCE)
+    =============================== */
+const state = {
+   products: [],
+   selectedProduct: null,
+   cart: [],
+
+   view: {
+     screen: "list", // list | detail | cart | success
+     qty: 1
+   },
+
+   admin: {
+     loggedIn: false,
+     user: null,
+     token: null
+   },
+
+   ui: {
+     loading: false,
+     overlayCount: 0,
+     error: null
+   }
+ };
+  </script>
+
+  <script>
+    /* ===============================
+       API LAYER
+    =============================== */
+  </script>
+
+  <script>
+    /* ===============================
+       UI HELPERS
+    =============================== */
+function renderHeader() {
+   const header = document.getElementById("app-header");
+
+   header.innerHTML = `
+     <div class="title">Stock Viewer</div>
+     <div class="actions">
+       ${
+         state.admin.loggedIn
+           ? `<span>${state.admin.user}</span>`
+           : `<button onclick="openLogin()">🔒 ล็อกอิน</button>`
+       }
+     </div>
+   `;
+ }
+
+function openSheet(id) {
+   document.getElementById(id)?.classList.add("show");
+   state.ui.overlayCount++;
+ }
+
+ function closeSheet(id) {
+   document.getElementById(id)?.classList.remove("show");
+   state.ui.overlayCount = Math.max(0, state.ui.overlayCount - 1);
+ }
+
+  </script>
+
+  <script>
+    /* ===============================
+       SCREEN RENDERERS
+    =============================== */
+function render() {
+   switch (state.view.screen) {
+     case "list":
+       renderProductList();
+       break;
+     case "detail":
+       renderProductDetail();
+       break;
+     case "cart":
+       renderCart();
+       break;
+     case "success":
+       renderSuccess();
+       break;
+     default:
+       console.warn("Unknown screen:", state.view.screen);
+   }
+ }
+
+function renderProductList() {
+  const app = document.getElementById("app");
+   
+  // loading state
+  if (state.ui.loading) {
+    app.innerHTML = "<p>กำลังโหลดสินค้า…</p>";
+    return;
+  }
+
+  // empty state
+  if (!Array.isArray(state.products) || state.products.length === 0) {
+    app.innerHTML = "<p>ยังไม่มีสินค้า</p>";
+    return;
+  }
+
+  app.innerHTML = `
+    <section class="product-list">
+      ${state.products.map(renderProductCard).join("")}
+    </section>
+  `;
+ }
+
+function renderProductCard(p) {
+  const inCart = state.cart.find(i => i.productId === p.productId);
+
+  return `
+    <div class="card" onclick="openProduct('${p.productId}')">
+      <div class="name">${p.name}</div>
+      <div class="price">${p.price}</div>
+      ${
+        inCart
+          ? `<div class="badge">${inCart.qty}</div>`
+          : ""
+      }
+    </div>
+  `;
+}
+
+ function renderProductDetail() {
+  const app = document.getElementById("app");
+  const p = state.selectedProduct;
+
+  // guard: state หลุด
+  if (!p) {
+    state.view.screen = "list";
+    render();
+    return;
+  }
+
+  app.innerHTML = `
+    <section class="product-detail">
+      <button class="back" onclick="goToList()">← กลับ</button>
+
+      <h2 class="name">${p.name}</h2>
+      <div class="price">${p.price}</div>
+
+      ${
+        p.description
+          ? `<div class="description">${p.description}</div>`
+          : ""
+      }
+
+      <button class="btn-primary" onclick="openQtyPicker()">
+        เลือกจำนวน
+      </button>
+    </section>
+  `;
+}
+
+ function renderCart() {
+   const app = document.getElementById("app");
+   app.innerHTML = "<p>Cart</p>";
+ }
+
+ function renderSuccess() {
+   const app = document.getElementById("app");
+   app.innerHTML = "<p>Success</p>";
+ }
+  </script>
+
+  <script>
+    /* ===============================
+       EVENT HANDLERS
+    =============================== */
+function goToList() {
+   state.view.screen = "list";
+   render();
+ }
+
+ function goToCart() {
+   state.view.screen = "cart";
+   render();
+ }
+
+function openProduct(productId) {
+  state.selectedProduct =
+    state.products.find(p => p.productId === productId) || null;
+
+  if (!state.selectedProduct) return;
+
+  state.view.screen = "detail";
+  render();
+}
+
+function openLogin() {
+   openSheet("login-sheet");
+ }
+
+function increaseQty() {
+  state.view.qty++;
+  renderQtyPicker();
+}
+
+function decreaseQty() {
+  if (state.view.qty > 1) {
+    state.view.qty--;
+    renderQtyPicker();
+  }
+}
+
+function confirmQty() {
+  // STEP นี้ยังไม่แตะ cart จริง
+  closeSheet("qty-sheet");
+}
+
+function openQtyPicker() {
+  state.view.qty = 1;
+  renderQtyPicker();
+  openSheet("qty-sheet");
+}
+
+function renderQtyPicker() {
+  const sheet = document.getElementById("qty-sheet");
+  const p = state.selectedProduct;
+
+  // guard: state หลุด
+  if (!p) {
+    closeSheet("qty-sheet");
+    return;
+  }
+
+  sheet.innerHTML = `
+    <div class="qty-picker">
+      <h3>เลือกจำนวน</h3>
+
+      <div class="qty-control">
+        <button onclick="decreaseQty()">−</button>
+        <span class="qty">${state.view.qty}</span>
+        <button onclick="increaseQty()">+</button>
+      </div>
+
+      <button class="btn-primary" onclick="confirmQty()">
+        เพิ่มเข้าตะกร้า
+      </button>
+
+      <button class="btn-secondary" onclick="closeSheet('qty-sheet')">
+        ยกเลิก
+      </button>
+    </div>
+  `;
+}
+
+  </script>
+
+  <script>
+    /* ===============================
+       APP BOOTSTRAP
+    =============================== */
+function boot() {
+   renderHeader();
+   render();
+ }
+
+ boot();
+  </script>
+
+</body>
+</html>
