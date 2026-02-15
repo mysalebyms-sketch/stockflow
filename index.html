@@ -493,6 +493,14 @@ function renderAdminOrderDetail() {
     /* ===============================
        EVENT HANDLERS
     =============================== */
+function requireAdmin() {
+  if (!state.admin.loggedIn) {
+    console.warn("Admin permission required");
+    return false;
+  }
+  return true;
+}
+    
 function goToList() {
    state.view.screen = "list";
    render();
@@ -631,6 +639,7 @@ function resetAfterOrder() {
 }
 
 function archiveOrder(orderId) {
+  if (!requireAdmin()) return;
   const order = state.orders.find(o => o.id === orderId);
   if (!order) return;
   order.archived = true;
@@ -639,6 +648,7 @@ function archiveOrder(orderId) {
 }
 
 function restoreOrder(orderId) {
+  if (!requireAdmin()) return;
   const order = state.orders.find(o => o.id === orderId);
   if (!order) return;
   order.archived = false;
