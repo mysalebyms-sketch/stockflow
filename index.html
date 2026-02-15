@@ -84,6 +84,31 @@
     /* ===============================
        GLOBAL STATE (SINGLE SOURCE)
     =============================== */
+const STORAGE_KEY = "stockviewer.orders";
+
+function loadOrders() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      state.orders = parsed;
+    }
+  } catch (e) {
+    console.warn("Failed to load orders", e);
+  }
+}
+
+function saveOrders() {
+  try {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(state.orders)
+    );
+  } catch (e) {
+    console.warn("Failed to save orders", e);
+  }
+}
+    
 const state = {
    products: [],
    selectedProduct: null,
@@ -526,6 +551,8 @@ function submitOrderAPI() {
       )
     });
 
+    saveOrders();
+
     resetAfterOrder();
     state.view.screen = "success";
     state.ui.loading = false;
@@ -546,6 +573,7 @@ function resetAfterOrder() {
        APP BOOTSTRAP
     =============================== */
 function boot() {
+   loadOrders();
    renderHeader();
    render();
  }
