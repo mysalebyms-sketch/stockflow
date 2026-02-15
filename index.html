@@ -138,6 +138,9 @@ const state = {
      loading: false,
      overlayCount: 0,
      error: null
+     },
+   audit: {
+     filterAction: "all"
    }
  };
   </script>
@@ -185,6 +188,10 @@ function openSheet(id) {
     =============================== */
 function render() {
    switch (state.view.screen) {
+
+     case "audit":
+       renderAdminAudit();
+       break;  
      case "list":
        renderProductList();
        break;
@@ -397,6 +404,75 @@ function viewOrder() {
   render();
 }
 
+function openAuditViewer() {
+  state.view.screen = "audit";
+  render();
+}
+
+function setAuditFilter(action) {
+  state.audit.filterAction = action;
+  render();
+}
+    
+function renderAdminAudit() {
+  const app = document.getElementById("app");
+
+  // guard: admin only
+  if (!state.admin.loggedIn) {
+    state.view.screen = "list";
+    render();
+    return;
+  }
+
+  let audits = state.orders
+    .flatMap(o => (o.audit || []).map(a => ({
+      ...a,
+      orderId: o.id
+    })))
+    .sort((a, b) => b.at - a.at);
+
+  if (state.audit.filterAction !== "all") {
+    audits = audits.filter(a => a.action === state.audit.filterAction);
+  }
+
+  const grouped = audits.reduce((acc, a) => {
+    (acc[a.action] ||= []).push(a);
+    return acc;
+  }, {});
+
+  app.innerHTML = `
+    <section class="admin-audit">
+      <h2>🧾 System Audit Log</h2>
+
+      <label>
+        Filter:
+        <select onchange="setAuditFilter(this.value)">
+          <option value="all">All</option>
+          ${Object.values(AUDIT_ACTION).map(a => `
+            <option value="${a}" ${state.audit.filterAction === a ? "selected" : ""}>
+              ${a}
+            </option>
+          `).join("")}
+        </select>
+      </label>
+
+      ${Object.keys(grouped).length === 0
+        ? "<p>— ไม่มี Audit —</p>"
+        : Object.entries(grouped).map(([action, list]) => `
+            <h3>${action}</h3>
+            ${list.map(a => `
+              <div class="audit-item">
+                <span>Order: ${a.orderId}</span>
+                <span>by ${a.by}</span>
+                <span>${new Date(a.at).toLocaleString()}</span>
+              </div>
+            `).join("")}
+          `).join("")}
+      <button onclick="renderAdminOrders()">← กลับ Admin</button>
+    </section>
+  `;
+}   
+
 function renderAdminOrders() {
   const app = document.getElementById("app");
 
@@ -467,6 +543,7 @@ function renderAdminOrders() {
 </button>
 
       <button onclick="goToList()">กลับหน้าร้าน</button>
+      <button onclick="openAuditViewer()">🧾 Audit Viewer</button>
     </section>
   `;
 }    
