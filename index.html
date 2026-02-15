@@ -532,6 +532,84 @@ const AUDIT_ACTION = {
     /* ===============================
        EVENT HANDLERS
     =============================== */
+const PNG_A4_PRESET = {
+  width: 794,   // A4 @ 96dpi
+  height: 1123,
+  margin: 48,
+  fontFamily: "Arial, sans-serif",
+  baseFontSize: 14
+};
+
+function buildOrderPNGContainer(order) {
+  const c = document.createElement("div");
+
+  c.style.width = PNG_A4_PRESET.width + "px";
+  c.style.minHeight = PNG_A4_PRESET.height + "px";
+  c.style.padding = PNG_A4_PRESET.margin + "px";
+  c.style.boxSizing = "border-box";
+  c.style.background = "#fff";
+  c.style.color = "#000";
+  c.style.fontFamily = PNG_A4_PRESET.fontFamily;
+  c.style.fontSize = PNG_A4_PRESET.baseFontSize + "px";
+  c.style.lineHeight = "1.6";
+
+  c.innerHTML = `
+    <h1 style="margin-bottom:16px">Order ${order.id}</h1>
+    <div style="margin-bottom:16px"><strong>Status:</strong> ${order.status}</div>
+
+    <h2>Items</h2>
+    ${order.items.map(i => `
+      <div style="display:flex;justify-content:space-between">
+        <span>${i.name} x${i.qty}</span>
+        <span>${i.price * i.qty}</span>
+      </div>
+    `).join("")}
+
+    <div style="margin-top:16px"><strong>Total:</strong> ${order.total}</div>
+
+    <h2 style="margin-top:24px">Audit Trail</h2>
+    ${(order.audit || []).map(a => `
+      <div style="font-size:12px;color:#555">
+        ${a.action} by ${a.by} @ ${new Date(a.at).toLocaleString()}
+      </div>
+    `).join("")}
+  `;
+
+  return c;
+}
+
+function exportOrderPNG(orderId) {
+  if (!requireAdmin()) return;
+
+  const order = state.orders.find(o => o.id === orderId);
+  if (!order) return;
+
+  const container = buildOrderPNGContainer(order);
+  container.style.position = "absolute";
+  container.style.left = "-9999px";
+  document.body.appendChild(container);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = PNG_A4_PRESET.width;
+  canvas.height = PNG_A4_PRESET.height;
+
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const img = svgToImage(container, canvas.width, canvas.height);
+  img.onload = () => {
+    ctx.drawImage(img, 0, 0);
+
+    const a = document.createElement("a");
+    a.download = `order-${order.id}.png`;
+    a.href = canvas.toDataURL("image/png");
+    a.click();
+
+    document.body.removeChild(container);
+  };
+}
+       
 function requireAdmin() {
   if (!state.admin.loggedIn) {
     console.warn("Admin permission required");
@@ -824,66 +902,6 @@ function svgToImage(element, width, height) {
   const img = new Image();
   img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
   return img;
-}
-
-function exportOrderPNG(orderId) {
-  if (!requireAdmin()) return;
-
-  const order = state.orders.find(o => o.id === orderId);
-  if (!order) return;
-
-  // create offscreen container
-  const container = document.createElement("div");
-  container.style.width = "800px";
-  container.style.padding = "24px";
-  container.style.fontFamily = "sans-serif";
-  container.style.background = "#fff";
-container.style.position = "absolute";
-container.style.left = "-9999px";
-container.style.top = "0";
-
-  container.innerHTML = `
-    <h1>Order ${order.id}</h1>
-    <p><strong>Status:</strong> ${order.status}</p>
-
-    <h2>Items</h2>
-    ${order.items.map(i => `
-      <div>${i.name} x${i.qty} — ${i.price * i.qty}</div>
-    `).join("")}
-
-    <p><strong>Total:</strong> ${order.total}</p>
-
-    <h2>Audit Trail</h2>
-    ${(order.audit || []).map(a => `
-      <div>${a.action} by ${a.by} @ ${new Date(a.at).toLocaleString()}</div>
-    `).join("")}
-  `;
-
-  document.body.appendChild(container);
-
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-
-  const rect = container.getBoundingClientRect();
-  canvas.width = rect.width;
-  canvas.height = rect.height;
-
-  ctx.fillStyle = "#fff";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  ctx.scale(1, 1);
-
-  const img = svgToImage(container, rect.width, rect.height);
-  img.onload = () => {
-    ctx.drawImage(img, 0, 0);
-
-    const link = document.createElement("a");
-    link.download = `order-${order.id}.png`;
-    link.href = canvas.toDataURL("image/png");
-    link.click();
-
-    document.body.removeChild(container);
-  };
 }
 
   </script>
