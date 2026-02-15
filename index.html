@@ -88,6 +88,7 @@ const state = {
    products: [],
    selectedProduct: null,
    cart: [],
+   lastOrder: null,
 
    view: {
      screen: "list", // list | detail | cart | success
@@ -313,8 +314,48 @@ function submitOrder() {
 
  function renderSuccess() {
    const app = document.getElementById("app");
-   app.innerHTML = "<p>Success</p>";
- }
+   
+   const order = state.lastOrder;
+
+  // guard
+  if (!order) {
+    state.view.screen = "list";
+    render();
+    return;
+  }
+
+  app.innerHTML = `
+    <section class="success">
+      <h2>✅ สั่งซื้อสำเร็จ</h2>
+
+      <div class="order-summary">
+        ${order.items.map(item => `
+          <div class="order-item">
+            <span>${item.name} x${item.qty}</span>
+            <span>${item.price * item.qty}</span>
+          </div>
+        `).join("")}
+      </div>
+
+      <div class="order-total">
+        รวมทั้งหมด: ${order.total}
+      </div>
+
+      <button class="btn-primary" onclick="goToList()">
+        กลับหน้าแรก
+      </button>
+
+      <button class="btn-secondary" onclick="viewOrder()">
+        ดูรายการสั่งซื้อ
+      </button>
+    </section>
+  `;
+}
+
+function viewOrder() {
+  // STEP ถัดไป: Order History / Admin
+  alert("ดูรายการสั่งซื้อ (ยังไม่เปิดใช้งาน)");
+}    
   </script>
 
   <script>
@@ -432,6 +473,14 @@ function submitOrderAPI() {
   // mock API
   setTimeout(() => {
     // success
+    state.lastOrder = {
+      items: [...state.cart],
+      total: state.cart.reduce(
+        (sum, item) => sum + item.price * item.qty,
+        0
+      )
+    };
+
     resetAfterOrder();
     state.view.screen = "success";
     state.ui.loading = false;
