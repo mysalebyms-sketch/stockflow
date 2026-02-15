@@ -511,7 +511,8 @@ function renderAdminOrderDetail() {
 </div>
 
  <button onclick="exportOrderPNG('${order.id}')">🖼️ Export PNG</button>
- <button onclick="printOrder('${order.id}')">🖨️ Export / Print (A4)</button>
+ <button onclick="exportOrderPDF('${order.id}')">📄 Export PDF (A4)</button>
+ <button onclick="printOrder('${order.id}')">🖨️ Print</button>
 
  ${order.status === "shipped" ? `
    <button class="danger" onclick="archiveOrder('${order.id}')">🗑️ Archive</button>
@@ -599,7 +600,7 @@ function buildOrderPNGContainer(order) {
 
   return c;
 }
-
+    
 function exportOrderPNG(orderId) {
   if (!requireAdmin()) return;
   if (!confirm("ต้องการ Export PNG สำหรับคำสั่งซื้อนี้หรือไม่?")) return;
@@ -951,7 +952,87 @@ function svgToImage(element, width, height) {
   return img;
 }
 
-  </script>
+ function exportOrderPDF(orderId) {
+   if (!requireAdmin()) return;
+   if (!confirm("ต้องการ Export PDF (A4) สำหรับคำสั่งซื้อนี้หรือไม่?")) return;
+
+   const order = state.orders.find(o => o.id === orderId);
+   if (!order) return;
+
+   const win = window.open("", "_blank");
+   if (!win) return;
+
+   win.document.write(`
+     <html>
+     <head>
+       <title>order-${order.id}.pdf</title>
+       <style>
+         @page {
+           size: A4;
+           margin: 24mm;
+         }
+         body {
+           font-family: Arial, sans-serif;
+           font-size: 12pt;
+           color: #000;
+         }
+         h1, h2 {
+           margin-bottom: 8px;
+         }
+         .section {
+           margin-bottom: 16px;
+         }
+         .item, .audit {
+           display: flex;
+           justify-content: space-between;
+         }
+         .muted {
+           color: #666;
+           font-size: 10pt;
+         }
+       </style>
+     </head>
+     <body>
+       <h1>Order ${order.id}</h1>
+
+       <div class="section">
+         <strong>Status:</strong> ${order.status}
+       </div>
+
+       <div class="section">
+         <h2>Items</h2>
+         ${order.items.map(i => `
+           <div class="item">
+             <span>${i.name} x${i.qty}</span>
+             <span>${i.price * i.qty}</span>
+           </div>
+         `).join("")}
+         <div><strong>Total:</strong> ${order.total}</div>
+       </div>
+
+       <div class="section">
+         <h2>Audit Trail</h2>
+         ${(order.audit || []).map(a => `
+           <div class="audit">
+             <span>${a.action}</span>
+             <span class="muted">${a.by} @ ${new Date(a.at).toLocaleString()}</span>
+           </div>
+         `).join("")}
+       </div>
+
+       <script>
+         window.onload = () => {
+           window.print();
+         };
+       </script>
+     </body>
+     </html>
+   `);
+
+   win.document.close();
+ }
+
+   </script>
 
   <script>
     /* ===============================
