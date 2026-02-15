@@ -602,6 +602,7 @@ function buildOrderPNGContainer(order) {
 
 function exportOrderPNG(orderId) {
   if (!requireAdmin()) return;
+  if (!confirm("ต้องการ Export PNG สำหรับคำสั่งซื้อนี้หรือไม่?")) return;
 
   const order = state.orders.find(o => o.id === orderId);
   if (!order) return;
@@ -645,10 +646,12 @@ function exportOrderPNG(orderId) {
      ctx.restore();
 
      const a = document.createElement("a");
-     a.download = `order-${order.id}-page-${page + 1}.png`;
+     a.download = `order-${order.id}-${order.status}-dpi${scale}-page-${page + 1}-of-${pageCount}.png`;
      a.href = canvas.toDataURL("image/png");
      a.click();
    }
+
+   alert(`🖼️ Export เสร็จแล้ว\n• Order: ${order.id}\n• จำนวนไฟล์: ${pageCount}\n• DPI: ${scale}×`);
 
    document.body.removeChild(container);
  };
