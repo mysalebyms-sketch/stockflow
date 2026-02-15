@@ -463,6 +463,12 @@ function renderAdminOrderDetail() {
   app.innerHTML = `
     <section class="admin-order-detail">
       <h2>📄 รายละเอียดคำสั่งซื้อ</h2>
+        <div class="readonly-note">🔒 Read-only (Admin)</div>
+
+      <div class="order-audit">
+       <div><strong>Order ID:</strong> ${order.id}</div>
+       <div><strong>Created At:</strong> ${new Date(order.createdAt).toLocaleString()}</div>
+     </div>
 
       ${order.items.map(item => `
         <div class="order-item">
