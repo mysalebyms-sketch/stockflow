@@ -558,7 +558,9 @@ const AUDIT_ACTION = {
   ARCHIVE: "archive",
   RESTORE: "restore",
   MARK_PAID: "mark_paid",
-  MARK_SHIPPED: "mark_shipped"
+  MARK_SHIPPED: "mark_shipped",
+  EXPORT_PDF: "export_pdf",
+  EXPORT_PDF_BATCH: "export_pdf_batch"
 };
 </script>
   
@@ -983,6 +985,13 @@ function svgToImage(element, width, height) {
    const order = state.orders.find(o => o.id === orderId);
    if (!order) return;
 
+   if (order.status !== "shipped") {
+     alert("⚠️ สามารถ Export PDF ได้เฉพาะคำสั่งซื้อที่จัดส่งแล้ว");
+     return;
+   }
+
+   logAudit(order, AUDIT_ACTION.EXPORT_PDF);
+
    const win = window.open("", "_blank");
    if (!win) return;
 
@@ -1130,6 +1139,16 @@ function toggleBatchShippedOnly(value) {
     return;
   }
 
+  const orders = orderIds
+    .map(id => state.orders.find(o => o.id === id))
+    .filter(Boolean);
+
+  const invalid = orders.filter(o => o.status !== "shipped");
+  if (invalid.length > 0) {
+    alert("⚠️ พบคำสั่งซื้อที่ยังไม่จัดส่ง ไม่สามารถ Export ได้");
+    return;
+  } 
+
   if (orderIds.length > 10) {
     alert("⚠️ จำกัดการ Export ครั้งละไม่เกิน 10 รายการ");
     return;
@@ -1140,10 +1159,16 @@ function toggleBatchShippedOnly(value) {
   );
   if (!ok) return;
 
+   orders.forEach(o =>
+     logAudit(o, AUDIT_ACTION.EXPORT_PDF_BATCH)
+   ); 
+
   let index = 0;
 
   function next() {
     if (index >= orderIds.length) {
+      state.batchSelection.selectedOrderIds = [];
+      renderAdminOrders();
       alert("📄 Export PDF (Batch) เสร็จสมบูรณ์");
       return;
     }
