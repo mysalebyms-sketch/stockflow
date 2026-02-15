@@ -501,7 +501,11 @@ function renderAdminOrderDetail() {
         `).join("") || "<p>— ไม่มีประวัติ —</p>"}
       </div>
 
-      <button class="danger" onclick="archiveOrder('${order.id}')">🗑️ Archive</button>
+ ${order.status === "shipped" ? `
+   <button class="danger" onclick="archiveOrder('${order.id}')">🗑️ Archive</button>
+ ` : `
+   <div class="policy-note">⚠️ ต้องจัดส่งแล้วจึงจะ Archive ได้</div>
+ `}
 
       <button onclick="renderAdminOrders()">← กลับรายการ</button>
     </section>
@@ -697,6 +701,11 @@ function archiveOrder(orderId) {
   
   const order = state.orders.find(o => o.id === orderId);
   if (!order) return;
+
+  if (order.status !== "shipped") {
+    alert("⚠️ สามารถ Archive ได้เฉพาะคำสั่งซื้อที่จัดส่งแล้วเท่านั้น");
+    return;
+  }
   
   logAudit(order, AUDIT_ACTION.ARCHIVE);
   order.archived = true;
