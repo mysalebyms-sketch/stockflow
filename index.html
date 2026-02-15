@@ -971,14 +971,47 @@ function svgToImage(element, width, height) {
            size: A4;
            margin: 24mm;
          }
-         body {
+
+body {
            font-family: Arial, sans-serif;
            font-size: 12pt;
            color: #000;
+           margin: 0;
          }
-         h1, h2 {
-           margin-bottom: 8px;
+
+         /* ===== Print Header / Footer ===== */
+         .pdf-header,
+         .pdf-footer {
+           position: fixed;
+           left: 0;
+           right: 0;
+           color: #555;
+           font-size: 10pt;
          }
+
+         .pdf-header {
+           top: 0;
+           padding: 12mm 24mm 6mm;
+           border-bottom: 1px solid #ddd;
+         }
+
+         .pdf-footer {
+           bottom: 0;
+           padding: 6mm 24mm 12mm;
+           border-top: 1px solid #ddd;
+           display: flex;
+           justify-content: space-between;
+         }
+
+         .page-number:after {
+           content: "Page " counter(page) " / " counter(pages);
+         }
+
+         /* content spacing to avoid overlap */
+         .pdf-content {
+           padding: 32mm 24mm;
+         }
+         
          .section {
            margin-bottom: 16px;
          }
@@ -993,7 +1026,21 @@ function svgToImage(element, width, height) {
        </style>
      </head>
      <body>
-       <h1>Order ${order.id}</h1>
+       <div class="pdf-header">
+         <strong>Order ${order.id}</strong>
+       </div>
+
+       <div class="pdf-footer">
+         <div>Printed by: ${state.admin.user || "unknown"}</div>
+         <div class="page-number"></div>
+       </div>
+
+       <div class="pdf-content">
+         <div class="section muted">
+           Printed at: ${new Date().toLocaleString()}
+         </div>
+
+         <h1>Order ${order.id}</h1>
 
        <div class="section">
          <strong>Status:</strong> ${order.status}
@@ -1020,6 +1067,7 @@ function svgToImage(element, width, height) {
          `).join("")}
        </div>
 
+       </div> <!-- /.pdf-content -->  
        <script>
          window.onload = () => {
            window.print();
