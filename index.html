@@ -117,7 +117,7 @@ const state = {
    selectedProduct: null,
    cart: [],
    orders: [],
-   selectedOrderIndex: null,
+   selectedOrderId: null,
 
    view: {
      screen: "list", // list | detail | cart | success | admin
@@ -415,8 +415,11 @@ function renderAdminOrders() {
       <h2>📦 รายการสั่งซื้อทั้งหมด</h2>
 
       <div class="order-list">
-        ${state.orders.map((order, index) => `
-          <div class="order-card" onclick="openOrderDetail(${index})">
+        ${state.orders
+   .filter(o => !o.archived)
+   .sort((a, b) => b.createdAt - a.createdAt)
+   .map((order, index) => `
+          <div class="order-card" onclick="openOrderDetail('${order.id}')">
             <div>Order #${index + 1}</div>
             <div>จำนวนสินค้า: ${order.items.length}</div>
             <div>ยอดรวม: ${order.total}</div>
@@ -429,14 +432,14 @@ function renderAdminOrders() {
   `;
 }    
 
-function openOrderDetail(index) {
-  state.selectedOrderIndex = index;
+function openOrderDetail(orderId) {
+  state.selectedOrderId = orderId;
   renderAdminOrderDetail();
-} 
+}
 
 function renderAdminOrderDetail() {
   const app = document.getElementById("app");
-  const order = state.orders[state.selectedOrderIndex];
+  const order = state.orders.find(o => o.id === state.selectedOrderId);
 
   if (!order) {
     renderAdminOrders();
@@ -457,6 +460,8 @@ function renderAdminOrderDetail() {
       <div class="order-total">
         รวมทั้งหมด: ${order.total}
       </div>
+
+      <button onclick="archiveOrder('${order.id}')">🗑️ Archive</button>
 
       <button onclick="renderAdminOrders()">← กลับรายการ</button>
     </section>
@@ -582,6 +587,7 @@ function submitOrderAPI() {
 state.orders.push({
       id: `ORD-${Date.now()}`,
       createdAt: Date.now(),
+      archived: false,
       items: [...state.cart],
       total: state.cart.reduce(
         (sum, item) => sum + item.price * item.qty,
@@ -602,6 +608,14 @@ function resetAfterOrder() {
   state.cart = [];
   state.selectedProduct = null;
   state.view.qty = 1;
+}
+
+function archiveOrder(orderId) {
+  const order = state.orders.find(o => o.id === orderId);
+  if (!order) return;
+  order.archived = true;
+  saveOrders();
+  renderAdminOrders();
 }
     
   </script>
