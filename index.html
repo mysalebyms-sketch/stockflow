@@ -1023,6 +1023,7 @@ body {
            color: #666;
            font-size: 10pt;
          }
+         
        </style>
      </head>
      <body>
@@ -1079,6 +1080,42 @@ body {
 
    win.document.close();
  }
+
+ function exportOrdersPDFBatch(orderIds) {
+  if (!requireAdmin()) return;
+
+  if (!Array.isArray(orderIds) || orderIds.length === 0) {
+    alert("ไม่มีคำสั่งซื้อให้ Export");
+    return;
+  }
+
+  if (orderIds.length > 10) {
+    alert("⚠️ จำกัดการ Export ครั้งละไม่เกิน 10 รายการ");
+    return;
+  }
+
+  const ok = confirm(
+    `ต้องการ Export PDF จำนวน ${orderIds.length} รายการหรือไม่?\n(จะเปิดทีละไฟล์)`
+  );
+  if (!ok) return;
+
+  let index = 0;
+
+  function next() {
+    if (index >= orderIds.length) {
+      alert("📄 Export PDF (Batch) เสร็จสมบูรณ์");
+      return;
+    }
+
+    exportOrderPDF(orderIds[index]);
+    index++;
+
+    // delay ป้องกัน popup block
+    setTimeout(next, 800);
+  }
+
+  next();
+}
 
    </script>
 
