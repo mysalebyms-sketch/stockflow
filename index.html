@@ -403,7 +403,7 @@ function renderAdminOrders() {
     return;
   }
 
-  state.selectedOrderIndex = null;
+  state.selectedOrderId = null;
 
   if (!state.orders.length) {
     app.innerHTML = "<p>ยังไม่มีรายการสั่งซื้อ</p>";
@@ -425,6 +425,20 @@ function renderAdminOrders() {
             <div>ยอดรวม: ${order.total}</div>
           </div>
         `).join("")}
+      </div>
+
+<h3>🗃️ Archived Orders</h3>
+      <div class="order-list archived">
+        ${state.orders
+          .filter(o => o.archived)
+          .sort((a, b) => b.createdAt - a.createdAt)
+          .map(order => `
+            <div class="order-card archived">
+              <div>${order.id}</div>
+              <div>ยอดรวม: ${order.total}</div>
+              <button onclick="restoreOrder('${order.id}')">♻️ Restore</button>
+            </div>
+          `).join("")}
       </div>
 
       <button onclick="goToList()">กลับหน้าร้าน</button>
@@ -617,7 +631,14 @@ function archiveOrder(orderId) {
   saveOrders();
   renderAdminOrders();
 }
-    
+
+function restoreOrder(orderId) {
+  const order = state.orders.find(o => o.id === orderId);
+  if (!order) return;
+  order.archived = false;
+  saveOrders();
+  renderAdminOrders();
+}    
   </script>
 
   <script>
