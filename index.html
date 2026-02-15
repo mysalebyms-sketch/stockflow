@@ -503,12 +503,12 @@ function renderAdminOrderDetail() {
 
  <div class="dpi-selector">
    DPI:
-   <select onchange="setDpiScale(this.value)">
-     <option value="1">1×</option>
-     <option value="2" selected>2×</option>
-     <option value="3">3×</option>
-   </select>
- </div>
+<select onchange="setDpiScale(this.value)">
+   <option value="1" ${selectedDpiScale === 1 ? "selected" : ""}>1×</option>
+   <option value="2" ${selectedDpiScale === 2 ? "selected" : ""}>2×</option>
+   <option value="3" ${selectedDpiScale === 3 ? "selected" : ""}>3×</option>
+ </select>
+</div>
 
  <button onclick="exportOrderPNG('${order.id}')">🖼️ Export PNG</button>
  <button onclick="printOrder('${order.id}')">🖨️ Export / Print (A4)</button>
