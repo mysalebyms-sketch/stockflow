@@ -118,6 +118,10 @@ const state = {
    cart: [],
    orders: [],
    selectedOrderId: null,
+  batchSelection: {
+    shippedOnly: true,
+    selectedOrderIds: []
+  },
 
    view: {
      screen: "list", // list | detail | cart | success | admin
@@ -414,16 +418,31 @@ function renderAdminOrders() {
     <section class="admin-orders">
       <h2>📦 รายการสั่งซื้อทั้งหมด</h2>
 
+      <label>
+    <input type="checkbox"
+      ${state.batchSelection.shippedOnly ? "checked" : ""}
+      onchange="toggleBatchShippedOnly(this.checked)"
+    />
+    แสดงเฉพาะคำสั่งซื้อที่จัดส่งแล้ว
+  </label>
+
       <div class="order-list">
         ${state.orders
-   .filter(o => !o.archived)
+      .filter(o => !o.archived)
+      .filter(o => !state.batchSelection.shippedOnly || o.status === "shipped")
    .sort((a, b) => b.createdAt - a.createdAt)
    .map((order, index) => `
-          <div class="order-card" onclick="openOrderDetail('${order.id}')">
+          <div class="order-card">
+          <input type="checkbox"
+            ${state.batchSelection.selectedOrderIds.includes(order.id) ? "checked" : ""}
+            onchange="toggleBatchOrder('${order.id}', this.checked)"
+          />
+          <span onclick="openOrderDetail('${order.id}')">
             <div>Order #${index + 1}</div>
             <div>สถานะ: ${order.status || "unknown"}</div>
             <div>จำนวนสินค้า: ${order.items.length}</div>
             <div>ยอดรวม: ${order.total}</div>
+           </span> 
           </div>
         `).join("")}
       </div>
@@ -441,6 +460,11 @@ function renderAdminOrders() {
             </div>
           `).join("")}
       </div>
+<button
+  onclick="exportOrdersPDFBatch(state.batchSelection.selectedOrderIds)"
+>
+  📄 Export PDF (Selected)
+</button>
 
       <button onclick="goToList()">กลับหน้าร้าน</button>
     </section>
@@ -1080,6 +1104,23 @@ body {
 
    win.document.close();
  }
+
+function toggleBatchOrder(orderId, checked) {
+  const list = state.batchSelection.selectedOrderIds;
+  if (checked && !list.includes(orderId)) {
+    list.push(orderId);
+  }
+  if (!checked) {
+    state.batchSelection.selectedOrderIds =
+      list.filter(id => id !== orderId);
+  }
+}
+
+function toggleBatchShippedOnly(value) {
+  state.batchSelection.shippedOnly = value;
+  state.batchSelection.selectedOrderIds = [];
+  renderAdminOrders();
+}
 
  function exportOrdersPDFBatch(orderIds) {
   if (!requireAdmin()) return;
