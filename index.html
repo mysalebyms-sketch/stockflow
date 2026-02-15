@@ -88,7 +88,7 @@ const state = {
    products: [],
    selectedProduct: null,
    cart: [],
-   lastOrder: null,
+   orders: [],
 
    view: {
      screen: "list", // list | detail | cart | success | admin
@@ -318,27 +318,27 @@ function submitOrder() {
  function renderSuccess() {
    const app = document.getElementById("app");
    
-   const order = state.lastOrder;
-
   // guard
-  if (!order) {
+  if (!state.orders.length) {
     state.view.screen = "list";
     render();
     return;
   }
 
+  const order = state.orders[state.orders.length - 1]; 
+
   app.innerHTML = `
     <section class="success">
       <h2>✅ สั่งซื้อสำเร็จ</h2>
 
-      <div class="order-summary">
-        ${order.items.map(item => `
-          <div class="order-item">
-            <span>${item.name} x${item.qty}</span>
-            <span>${item.price * item.qty}</span>
-          </div>
-        `).join("")}
-      </div>
+<div class="order-summary">
+   ${order.items.map(item => `
+     <div class="order-item">
+       <span>${item.name} x${item.qty}</span>
+       <span>${item.price * item.qty}</span>
+     </div>
+   `).join("")}
+ </div>
 
       <div class="order-total">
         รวมทั้งหมด: ${order.total}
@@ -374,12 +374,12 @@ function renderAdminOrders() {
     return;
   }
 
-  if (!state.lastOrder) {
+  if (!state.orders.length) {
     app.innerHTML = "<p>ยังไม่มีรายการสั่งซื้อ</p>";
     return;
   }
 
-  const order = state.lastOrder;
+  const order = state.orders[state.orders.length - 1];
 
   app.innerHTML = `
     <section class="admin-orders">
@@ -518,13 +518,13 @@ function submitOrderAPI() {
   // mock API
   setTimeout(() => {
     // success
-    state.lastOrder = {
+    state.orders.push({
       items: [...state.cart],
       total: state.cart.reduce(
         (sum, item) => sum + item.price * item.qty,
         0
       )
-    };
+    });
 
     resetAfterOrder();
     state.view.screen = "success";
