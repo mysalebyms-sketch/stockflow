@@ -91,7 +91,7 @@ const state = {
    lastOrder: null,
 
    view: {
-     screen: "list", // list | detail | cart | success
+     screen: "list", // list | detail | cart | success | admin
      qty: 1
    },
 
@@ -164,6 +164,9 @@ function render() {
      case "success":
        renderSuccess();
        break;
+     case "admin":
+       renderAdminOrders();
+       break;  
      default:
        console.warn("Unknown screen:", state.view.screen);
    }
@@ -353,9 +356,51 @@ function submitOrder() {
 }
 
 function viewOrder() {
-  // STEP ถัดไป: Order History / Admin
-  alert("ดูรายการสั่งซื้อ (ยังไม่เปิดใช้งาน)");
+  if (!state.admin.loggedIn) {
+    openLogin();
+    return;
+  }
+  state.view.screen = "admin";
+  render();
+}
+
+function renderAdminOrders() {
+  const app = document.getElementById("app");
+
+  // guard: admin only
+  if (!state.admin.loggedIn) {
+    state.view.screen = "list";
+    render();
+    return;
+  }
+
+  if (!state.lastOrder) {
+    app.innerHTML = "<p>ยังไม่มีรายการสั่งซื้อ</p>";
+    return;
+  }
+
+  const order = state.lastOrder;
+
+  app.innerHTML = `
+    <section class="admin-orders">
+      <h2>📦 รายการสั่งซื้อ (ล่าสุด)</h2>
+
+      ${order.items.map(item => `
+        <div class="order-item">
+          <span>${item.name} x${item.qty}</span>
+          <span>${item.price * item.qty}</span>
+        </div>
+      `).join("")}
+
+      <div class="order-total">
+        รวมทั้งหมด: ${order.total}
+      </div>
+
+      <button onclick="goToList()">กลับหน้าร้าน</button>
+    </section>
+  `;
 }    
+    
   </script>
 
   <script>
