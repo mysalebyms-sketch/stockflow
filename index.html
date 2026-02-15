@@ -187,9 +187,27 @@ function renderProductList() {
     <section class="product-list">
       ${state.products.map(renderProductCard).join("")}
     </section>
+    ${renderFloatingCart()}
   `;
  }
 
+function renderFloatingCart() {
+  if (!Array.isArray(state.cart) || state.cart.length === 0) {
+    return "";
+  }
+
+  const totalQty = state.cart.reduce(
+    (sum, item) => sum + item.qty,
+    0
+  );
+
+  return `
+    <div class="floating-cart" onclick="goToCart()">
+      🛒 <span class="count">${totalQty}</span>
+    </div>
+  `;
+}
+    
 function renderProductCard(p) {
   const inCart = state.cart.find(i => i.productId === p.productId);
 
