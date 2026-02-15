@@ -308,9 +308,7 @@ function renderCartItem(item) {
 }   
 
 function submitOrder() {
-  // STEP ถัดไป: Order Submit
-  state.view.screen = "success";
-  render();
+  submitOrderAPI();
 }    
 
  function renderSuccess() {
@@ -424,6 +422,29 @@ function renderQtyPicker() {
   `;
 }
 
+function submitOrderAPI() {
+  // guard
+  if (!Array.isArray(state.cart) || state.cart.length === 0) return;
+
+  state.ui.loading = true;
+  render();
+
+  // mock API
+  setTimeout(() => {
+    // success
+    resetAfterOrder();
+    state.view.screen = "success";
+    state.ui.loading = false;
+    render();
+  }, 800);
+}    
+
+function resetAfterOrder() {
+  state.cart = [];
+  state.selectedProduct = null;
+  state.view.qty = 1;
+}
+    
   </script>
 
   <script>
