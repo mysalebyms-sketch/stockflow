@@ -289,9 +289,32 @@ function decreaseQty() {
 }
 
 function confirmQty() {
-  // STEP นี้ยังไม่แตะ cart จริง
+  addToCart();
   closeSheet("qty-sheet");
+  render(); // refresh badge / screen
 }
+
+function addToCart() {
+  const p = state.selectedProduct;
+  const qty = state.view.qty;
+
+  if (!p || qty <= 0) return;
+
+  const existing = state.cart.find(
+    item => item.productId === p.productId
+  );
+
+  if (existing) {
+    existing.qty += qty; // merge qty
+  } else {
+    state.cart.push({
+      productId: p.productId,
+      name: p.name,
+      price: p.price,
+      qty
+    });
+  }
+}    
 
 function openQtyPicker() {
   state.view.qty = 1;
