@@ -140,7 +140,10 @@ const state = {
      error: null
      },
    audit: {
-     filterAction: "all"
+   filterAction: "all",
+   search: "",
+   fromDate: "",
+   toDate: ""
    }
  };
   </script>
@@ -413,6 +416,17 @@ function setAuditFilter(action) {
   state.audit.filterAction = action;
   render();
 }
+
+function setAuditSearch(value) {
+  state.audit.search = value.toLowerCase();
+  render();
+}
+
+function setAuditDateRange(from, to) {
+  state.audit.fromDate = from;
+  state.audit.toDate = to;
+  render();
+}    
     
 function renderAdminAudit() {
   const app = document.getElementById("app");
@@ -429,12 +443,31 @@ function renderAdminAudit() {
       ...a,
       orderId: o.id
     })))
-    .sort((a, b) => b.at - a.at);
-
+    
   if (state.audit.filterAction !== "all") {
     audits = audits.filter(a => a.action === state.audit.filterAction);
   }
 
+  if (state.audit.search) {
+  audits = audits.filter(a =>
+    a.orderId.toLowerCase().includes(state.audit.search) ||
+    (a.by || "").toLowerCase().includes(state.audit.search) ||
+    a.action.toLowerCase().includes(state.audit.search)
+  );
+}
+
+if (state.audit.fromDate) {
+  const from = new Date(state.audit.fromDate).getTime();
+  audits = audits.filter(a => a.at >= from);
+}
+
+if (state.audit.toDate) {
+  const to = new Date(state.audit.toDate).getTime() + 86400000;
+  audits = audits.filter(a => a.at <= to);
+}
+
+audits.sort((a, b) => b.at - a.at);  
+  
   const grouped = audits.reduce((acc, a) => {
     (acc[a.action] ||= []).push(a);
     return acc;
@@ -443,6 +476,32 @@ function renderAdminAudit() {
   app.innerHTML = `
     <section class="admin-audit">
       <h2>🧾 System Audit Log</h2>
+
+<div class="audit-tools">
+  <input
+    type="text"
+    placeholder="Search order / admin / keyword"
+    value="${state.audit.search}"
+    oninput="setAuditSearch(this.value)"
+  />
+
+  <input
+    type="date"
+    value="${state.audit.fromDate}"
+    onchange="setAuditDateRange(this.value, state.audit.toDate)"
+  />
+
+  <input
+    type="date"
+    value="${state.audit.toDate}"
+    onchange="setAuditDateRange(state.audit.fromDate, this.value)"
+  />
+</div>
+
+<div class="audit-export">
+  <button onclick="exportAuditLog('json')">⬇️ Export JSON</button>
+  <button onclick="exportAuditLog('csv')">⬇️ Export CSV</button>
+</div>
 
       <label>
         Filter:
@@ -923,6 +982,68 @@ const last = order.audit[order.audit.length - 1];
     by: state.admin.user || "unknown",
     at: Date.now()
   });
+}
+
+function exportAuditLog(format = "json") {
+  if (!requireAdmin()) return;
+
+let audits = state.orders
+    .flatMap(o => (o.audit || []).map(a => ({
+      ...a,
+      orderId: o.id
+    })))
+    .sort((a, b) => b.at - a.at);
+
+  if (state.audit.filterAction !== "all") {
+    audits = audits.filter(a => a.action === state.audit.filterAction);
+  }
+
+  if (state.audit.search) {
+    audits = audits.filter(a =>
+      a.orderId.toLowerCase().includes(state.audit.search) ||
+      (a.by || "").toLowerCase().includes(state.audit.search) ||
+      a.action.toLowerCase().includes(state.audit.search)
+    );
+  }
+
+  if (state.audit.fromDate) {
+    const from = new Date(state.audit.fromDate).getTime();
+    audits = audits.filter(a => a.at >= from);
+  }
+
+  if (state.audit.toDate) {
+    const to = new Date(state.audit.toDate).getTime() + 86400000;
+    audits = audits.filter(a => a.at <= to);
+  }
+
+  const data = audits.map(a => ({
+    orderId: a.orderId,
+    action: a.action,
+    by: a.by,
+    at: new Date(a.at).toISOString()
+  }));
+
+  let blob;
+  let filename = `audit-log.${format}`;
+
+  if (format === "csv") {
+    const header = "orderId,action,by,at\n";
+    const rows = data.map(d =>
+      `${d.orderId},${d.action},${d.by},${d.at}`
+    ).join("\n");
+    blob = new Blob([header + rows], { type: "text/csv" });
+  } else {
+    blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: "application/json"
+    });
+  }
+
+  const a = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
     
 function archiveOrder(orderId) {
