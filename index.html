@@ -509,6 +509,18 @@ function renderAdminOrderDetail() {
 }    
   </script>
 
+<script>
+  /* ===============================
+     AUDIT CONSTANTS (STEP 5B)
+  =============================== */
+const AUDIT_ACTION = {
+  ARCHIVE: "archive",
+  RESTORE: "restore",
+  MARK_PAID: "mark_paid",
+  MARK_SHIPPED: "mark_shipped"
+};
+</script>
+  
   <script>
     /* ===============================
        EVENT HANDLERS
@@ -665,6 +677,11 @@ function logAudit(order, action) {
     order.audit = [];
   }
 
+const last = order.audit[order.audit.length - 1];
+  if (last && last.action === action) {
+    return; // prevent duplicate consecutive audit
+  }
+  
   order.audit.push({
     action,
     by: state.admin.user || "unknown",
@@ -681,7 +698,7 @@ function archiveOrder(orderId) {
   const order = state.orders.find(o => o.id === orderId);
   if (!order) return;
   
-  logAudit(order, "archive");
+  logAudit(order, AUDIT_ACTION.ARCHIVE);
   order.archived = true;
   saveOrders();
   alert("📦 Order ถูก Archive แล้ว");
@@ -693,7 +710,7 @@ function restoreOrder(orderId) {
   const order = state.orders.find(o => o.id === orderId);
   if (!order) return;
 
-  logAudit(order, "restore");
+  logAudit(order, AUDIT_ACTION.RESTORE);
   order.archived = false;
   saveOrders();
   alert("♻️ Order ถูก Restore แล้ว");
@@ -705,7 +722,7 @@ function markOrderPaid(orderId) {
   const order = state.orders.find(o => o.id === orderId);
   if (!order || order.status !== "new") return;
 
-  logAudit(order, "mark_paid");
+  logAudit(order, AUDIT_ACTION.MARK_PAID);
   order.status = "paid";
   saveOrders();
   renderAdminOrderDetail();
@@ -716,7 +733,7 @@ function markOrderShipped(orderId) {
   const order = state.orders.find(o => o.id === orderId);
   if (!order || order.status !== "paid") return;
 
-  logAudit(order, "mark_shipped");
+  logAudit(order, AUDIT_ACTION.MARK_SHIPPED);
   order.status = "shipped";
   saveOrders();
   renderAdminOrderDetail();
