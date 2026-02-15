@@ -584,22 +584,28 @@ function exportOrderPNG(orderId) {
   const order = state.orders.find(o => o.id === orderId);
   if (!order) return;
 
+  const scale = window.devicePixelRatio || 2;
+  
   const container = buildOrderPNGContainer(order);
   container.style.position = "absolute";
   container.style.left = "-9999px";
   document.body.appendChild(container);
 
   const canvas = document.createElement("canvas");
-  canvas.width = PNG_A4_PRESET.width;
-  canvas.height = PNG_A4_PRESET.height;
+  canvas.width = PNG_A4_PRESET.width * scale;
+  canvas.height = PNG_A4_PRESET.height * scale;
+
+  canvas.style.width = PNG_A4_PRESET.width + "px";
+  canvas.style.height = PNG_A4_PRESET.height + "px";
 
   const ctx = canvas.getContext("2d");
+  ctx.scale(scale, scale);
   ctx.fillStyle = "#fff";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, PNG_A4_PRESET.width, PNG_A4_PRESET.height);
 
   const img = svgToImage(container, canvas.width, canvas.height);
   img.onload = () => {
-    ctx.drawImage(img, 0, 0);
+    ctx.drawImage(img, 0, 0, PNG_A4_PRESET.width, PNG_A4_PRESET.height);
 
     const a = document.createElement("a");
     a.download = `order-${order.id}.png`;
