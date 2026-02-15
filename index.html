@@ -481,7 +481,7 @@ function renderAdminOrderDetail() {
         รวมทั้งหมด: ${order.total}
       </div>
 
-      <button onclick="archiveOrder('${order.id}')">🗑️ Archive</button>
+      <button class="danger" onclick="archiveOrder('${order.id}')">🗑️ Archive</button>
 
       <button onclick="renderAdminOrders()">← กลับรายการ</button>
     </section>
@@ -640,10 +640,15 @@ function resetAfterOrder() {
 
 function archiveOrder(orderId) {
   if (!requireAdmin()) return;
+
+  const ok = confirm("คุณแน่ใจหรือไม่ว่าต้องการ Archive คำสั่งซื้อนี้?");
+  if (!ok) return;
+  
   const order = state.orders.find(o => o.id === orderId);
   if (!order) return;
   order.archived = true;
   saveOrders();
+  alert("📦 Order ถูก Archive แล้ว");
   renderAdminOrders();
 }
 
@@ -653,6 +658,7 @@ function restoreOrder(orderId) {
   if (!order) return;
   order.archived = false;
   saveOrders();
+  alert("♻️ Order ถูก Restore แล้ว");
   renderAdminOrders();
 }    
   </script>
