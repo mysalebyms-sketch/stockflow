@@ -257,8 +257,61 @@ function renderProductCard(p) {
 
  function renderCart() {
    const app = document.getElementById("app");
-   app.innerHTML = "<p>Cart</p>";
- }
+   
+  // empty cart
+  if (!Array.isArray(state.cart) || state.cart.length === 0) {
+    app.innerHTML = `
+      <section class="cart">
+        <p>ตะกร้าว่าง</p>
+        <button onclick="goToList()">เลือกสินค้า</button>
+      </section>
+    `;
+    return;
+  }
+
+  const total = state.cart.reduce(
+    (sum, item) => sum + item.price * item.qty,
+    0
+  );
+
+  app.innerHTML = `
+    <section class="cart">
+      <h2>สรุปรายการ</h2>
+
+      <div class="cart-items">
+        ${state.cart.map(renderCartItem).join("")}
+      </div>
+
+      <div class="cart-total">
+        รวมทั้งหมด: ${total}
+      </div>
+
+      <button class="btn-primary" onclick="submitOrder()">
+        ยืนยันสั่งซื้อ
+      </button>
+
+      <button class="btn-secondary" onclick="goToList()">
+        เลือกสินค้าเพิ่ม
+      </button>
+    </section>
+  `;
+}
+
+function renderCartItem(item) {
+  return `
+    <div class="cart-item">
+      <div class="name">${item.name}</div>
+      <div class="qty">x${item.qty}</div>
+      <div class="price">${item.price * item.qty}</div>
+    </div>
+  `;
+}   
+
+function submitOrder() {
+  // STEP ถัดไป: Order Submit
+  state.view.screen = "success";
+  render();
+}    
 
  function renderSuccess() {
    const app = document.getElementById("app");
