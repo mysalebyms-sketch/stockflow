@@ -242,6 +242,7 @@ const state = {
    },
    analytics: {
      rangeDays: 7 // 7 | 30  
+     ,selectedSnapshotIndex: 0
    }
  };
    
@@ -539,6 +540,11 @@ function setAnalyticsRange(days) {
   render();
 }    
 
+function setAnalyticsSnapshot(index) {
+  state.analytics.selectedSnapshotIndex = Number(index) || 0;
+  render();
+}
+
  function applyAuditPreset(preset) {
    Object.assign(state.audit, preset.filters);
    saveAuditFilter();
@@ -782,14 +788,24 @@ audits.sort((a, b) => b.at - a.at);
   }
 
   const snapshots = loadAnalyticsSnapshots();
-  const lastSnapshot = snapshots[0]; 
-  const audits = collectAllAudits();
-  const trend = buildAuditTrendComparison(audits);
+  const selected =
+    snapshots[state.analytics.selectedSnapshotIndex] || null;
+  const lastSnapshot = snapshots[0];
+
+  const auditsNow = collectAllAudits();
+  const trendNow = buildAuditTrendComparison(auditsNow); 
+  const trendSnapshot = selected
+  ? selected.data
+  : null;
   const range = state.analytics.rangeDays;
-  const current =
-    range === 7 ? trend.last7 : trend.last30;
-  const currentCount =
-    range === 7 ? trend.count7 : trend.count30;
+  const base =
+  trendSnapshot
+    ? (range === 7
+        ? trendSnapshot.last7
+        : trendSnapshot.last30)
+    : (range === 7
+        ? trendNow.last7
+        : trendNow.last30);
 
   app.innerHTML = `
     <section class="admin-analytics">
@@ -810,6 +826,23 @@ audits.sort((a, b) => b.at - a.at);
         <button onclick="exportAnalyticsJSON()">⬇️ Export JSON</button>
       </div>
 
+      ${snapshots.length > 0 ? `
+  <div class="analytics-snapshot-select">
+    <label>
+      📦 Snapshot:
+      <select onchange="setAnalyticsSnapshot(this.value)">
+        ${snapshots.map((s, i) => `
+          <option value="${i}"
+            ${i === state.analytics.selectedSnapshotIndex ? "selected" : ""}>
+            ${new Date(s.meta.generatedAt).toLocaleString()}
+            (${s.meta.rangeDays}d)
+          </option>
+        `).join("")}
+      </select>
+    </label>
+  </div>
+` : ""}
+
       <div class="analytics-toggle">
     <button
       onclick="setAnalyticsRange(7)"
@@ -822,22 +855,36 @@ audits.sort((a, b) => b.at - a.at);
   </div>
 
       <h3>Trend Compare</h3>
-      <p>Last 7 days: ${trend.count7} actions</p>
-      <p>Last 30 days: ${trend.count30} actions</p>
+      ${trendSnapshot ? `
+  <p>Snapshot 7 days: ${trendSnapshot.count7}</p>
+  <p>Snapshot 30 days: ${trendSnapshot.count30}</p>
+` : ""}
 
 <h3>Top Actions (Last ${range} days)</h3>
  ${renderBarChart(
-   current.byAction,
-   Math.max(...Object.values(current.byAction), 1)
+   base.byAction,
+   Math.max(...Object.values(base.byAction), 1)
  )}
 
  <p>
    Δ vs 30 days:
-   ${renderDelta(trend.count7, trend.count30)}
+   ${renderDelta(trendNow.count7, trendNow.count30)}
  </p>
 
+ ${trendSnapshot ? `
+   <h3>Δ Snapshot → Current</h3>
+   <p>
+     7 days:
+     ${renderDelta(trendNow.count7, trendSnapshot.count7)}
+   </p>
+   <p>
+     30 days:
+     ${renderDelta(trendNow.count30, trendSnapshot.count30)}
+   </p>
+ ` : ""}
+ 
       <h3>Top Admins (Last 7 days)</h3>
-      ${Object.entries(trend.last7.byAdmin)
+      ${Object.entries(trendNow.last7.byAdmin)
         .sort((a,b) => b[1]-a[1])
         .map(([k,v]) => `<div>${k}: ${v}</div>`)
         .join("") || "<p>— ไม่มีข้อมูล —</p>"}
