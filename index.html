@@ -588,6 +588,39 @@ function setAnalyticsRange(days) {
      ? `<span class="delta plus">+${diff}</span>`
      : `<span class="delta minus">${diff}</span>`;
  }
+
+function exportAnalyticsJSON() {
+  if (!requireAdmin()) return;
+
+  const audits = collectAllAudits();
+  const trend = buildAuditTrendComparison(audits);
+
+  const payload = {
+    meta: {
+      generatedAt: new Date().toISOString(),
+      generatedBy: state.admin.user || "unknown",
+      rangeDays: state.analytics.rangeDays
+    },
+    data: {
+      last7: trend.last7,
+      last30: trend.last30,
+      count7: trend.count7,
+      count30: trend.count30
+    }
+  };
+
+  const blob = new Blob(
+    [JSON.stringify(payload, null, 2)],
+    { type: "application/json" }
+  );
+
+  const a = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  a.href = url;
+  a.download = "analytics-snapshot.json";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
     
 function renderAdminAudit() {
   const app = document.getElementById("app");
@@ -736,6 +769,11 @@ audits.sort((a, b) => b.at - a.at);
   app.innerHTML = `
     <section class="admin-analytics">
       <h2>📈 Audit Insights</h2>
+
+      <div class="analytics-export">
+        <button onclick="exportAnalyticsPNG()">🖼️ Export PNG</button>
+        <button onclick="exportAnalyticsJSON()">⬇️ Export JSON</button>
+      </div>
 
       <div class="analytics-toggle">
     <button
@@ -1438,6 +1476,33 @@ function svgToImage(element, width, height) {
   return img;
 }
 
+function exportAnalyticsPNG() {
+  if (!requireAdmin()) return;
+
+  const section = document.querySelector(".admin-analytics");
+  if (!section) return;
+
+  const rect = section.getBoundingClientRect();
+  const width = Math.ceil(rect.width);
+  const height = Math.ceil(rect.height);
+
+  const img = svgToImage(section, width, height);
+  img.onload = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(img, 0, 0);
+
+    const a = document.createElement("a");
+    a.download = "analytics-snapshot.png";
+    a.href = canvas.toDataURL("image/png");
+    a.click();
+  };
+}
+   
  function exportOrderPDF(orderId) {
    if (!requireAdmin()) return;
    if (!confirm("ต้องการ Export PDF (A4) สำหรับคำสั่งซื้อนี้หรือไม่?")) return;
