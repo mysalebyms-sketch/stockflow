@@ -86,6 +86,7 @@
     =============================== */
 const STORAGE_KEY = "stockviewer.orders";
 const AUDIT_FILTER_KEY = "stockviewer.audit.filters";    
+const AUDIT_PRESET_KEY = "stockviewer.audit.presets";    
 
 function loadOrders() {
   try {
@@ -131,6 +132,21 @@ function saveOrders() {
      JSON.stringify(state.audit)
    );
  }    
+
+ function loadAuditPresets() {
+   try {
+     return JSON.parse(localStorage.getItem(AUDIT_PRESET_KEY)) || [];
+   } catch {
+     return [];
+   }
+ }
+
+ function saveAuditPresets(presets) {
+   localStorage.setItem(
+     AUDIT_PRESET_KEY,
+     JSON.stringify(presets)
+   );
+ }
     
 const state = {
    products: [],
@@ -167,6 +183,7 @@ const state = {
    lastDays: null
    }
  };
+   
   </script>
 
   <script>
@@ -215,6 +232,9 @@ function render() {
 
      case "audit":
        renderAdminAudit();
+       break;  
+     case "analytics":
+       renderAdminAnalytics();
        break;  
      case "list":
        renderProductList();
@@ -450,7 +470,13 @@ function setAuditDateRange(from, to) {
   state.audit.toDate = to;
   saveAuditFilter();
   render();
-}    
+}
+
+ function applyAuditPreset(preset) {
+   Object.assign(state.audit, preset.filters);
+   saveAuditFilter();
+   render();
+ }
 
  function applyRelativeDateFilter(audits, days) {
    if (!days) return audits;
@@ -597,6 +623,12 @@ audits.sort((a, b) => b.at - a.at);
   `;
 }   
 
+ function renderAdminAnalytics() {
+   if (!state.admin.loggedIn) return;
+   // reuse audit selectors
+   // read-only insight view only
+ }
+    
 function renderAdminOrders() {
   const app = document.getElementById("app");
 
