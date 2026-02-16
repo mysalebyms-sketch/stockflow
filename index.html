@@ -591,6 +591,24 @@ function setAnalyticsSnapshot(index) {
    };
  }   
 
+function buildDiffMatrix(current = {}, previous = {}) {
+  const keys = new Set([
+    ...Object.keys(current),
+    ...Object.keys(previous)
+  ]);
+
+  return Array.from(keys).map(k => {
+    const cur = current[k] || 0;
+    const prev = previous[k] || 0;
+    return {
+      key: k,
+      current: cur,
+      previous: prev,
+      delta: cur - prev
+    };
+  });
+}
+   
  function renderBarChart(data, max) {
    return `
      <div class="bar-chart">
@@ -615,6 +633,33 @@ function setAnalyticsSnapshot(index) {
      : `<span class="delta minus">${diff}</span>`;
  }
 
+function renderDiffMatrix(rows) {
+  if (!rows.length) return "<p>— ไม่มีข้อมูล —</p>";
+
+  return `
+    <table class="diff-matrix">
+      <thead>
+        <tr>
+          <th>Key</th>
+          <th>Snapshot</th>
+          <th>Current</th>
+          <th>Δ</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map(r => `
+          <tr>
+            <td>${r.key}</td>
+            <td>${r.previous}</td>
+            <td>${r.current}</td>
+            <td>${renderDelta(r.current, r.previous)}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+}
+    
 function exportAnalyticsJSON() {
   if (!requireAdmin()) return;
 
@@ -861,10 +906,15 @@ audits.sort((a, b) => b.at - a.at);
 ` : ""}
 
 <h3>Top Actions (Last ${range} days)</h3>
- ${renderBarChart(
-   base.byAction,
-   Math.max(...Object.values(base.byAction), 1)
- )}
+ ${trendSnapshot ? `
+  <h4>Δ by Action (Snapshot → Current)</h4>
+  ${renderDiffMatrix(
+    buildDiffMatrix(
+      trendNow.last7.byAction,
+      trendSnapshot.last7.byAction
+    )
+  )}
+` : ""}
 
  <p>
    Δ vs 30 days:
@@ -883,11 +933,15 @@ audits.sort((a, b) => b.at - a.at);
    </p>
  ` : ""}
  
-      <h3>Top Admins (Last 7 days)</h3>
-      ${Object.entries(trendNow.last7.byAdmin)
-        .sort((a,b) => b[1]-a[1])
-        .map(([k,v]) => `<div>${k}: ${v}</div>`)
-        .join("") || "<p>— ไม่มีข้อมูล —</p>"}
+${trendSnapshot ? `
+  <h3>Δ by Admin (Last 7 days)</h3>
+  ${renderDiffMatrix(
+    buildDiffMatrix(
+      trendNow.last7.byAdmin,
+      trendSnapshot.last7.byAdmin
+    )
+  )}
+` : ""}
 
       <button onclick="openAuditViewer()">← Back to Audit</button>
     </section>
