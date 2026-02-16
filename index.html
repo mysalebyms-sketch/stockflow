@@ -85,6 +85,7 @@
        GLOBAL STATE (SINGLE SOURCE)
     =============================== */
 const STORAGE_KEY = "stockviewer.orders";
+const AUDIT_FILTER_KEY = "stockviewer.audit.filters";    
 
 function loadOrders() {
   try {
@@ -111,6 +112,25 @@ function saveOrders() {
     console.warn("Failed to save orders", e);
   }
 }
+
+ function loadAuditFilter() {
+   try {
+     const raw = localStorage.getItem(AUDIT_FILTER_KEY);
+      if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        Object.assign(state.audit, parsed);
+      }
+    }
+   } catch {}
+ }
+
+ function saveAuditFilter() {
+   localStorage.setItem(
+     AUDIT_FILTER_KEY,
+     JSON.stringify(state.audit)
+   );
+ }    
     
 const state = {
    products: [],
@@ -143,7 +163,8 @@ const state = {
    filterAction: "all",
    search: "",
    fromDate: "",
-   toDate: ""
+   toDate: "",
+   lastDays: null
    }
  };
   </script>
@@ -414,19 +435,40 @@ function openAuditViewer() {
 
 function setAuditFilter(action) {
   state.audit.filterAction = action;
+  saveAuditFilter();
   render();
 }
 
 function setAuditSearch(value) {
   state.audit.search = value.toLowerCase();
+  saveAuditFilter();
   render();
 }
 
 function setAuditDateRange(from, to) {
   state.audit.fromDate = from;
   state.audit.toDate = to;
+  saveAuditFilter();
   render();
 }    
+
+ function applyRelativeDateFilter(audits, days) {
+   if (!days) return audits;
+   const since = Date.now() - days * 24 * 60 * 60 * 1000;
+   return audits.filter(a => a.at >= since);
+ }
+    
+ function buildAuditSummary(audits) {
+   const byAction = {};
+   const byAdmin = {};
+
+   audits.forEach(a => {
+     byAction[a.action] = (byAction[a.action] || 0) + 1;
+     byAdmin[a.by] = (byAdmin[a.by] || 0) + 1;
+   });
+
+   return { byAction, byAdmin };
+ }
     
 function renderAdminAudit() {
   const app = document.getElementById("app");
@@ -443,7 +485,12 @@ function renderAdminAudit() {
       ...a,
       orderId: o.id
     })))
-    
+
+  audits = applyRelativeDateFilter(
+    audits,
+    state.audit.lastDays
+  );
+  
   if (state.audit.filterAction !== "all") {
     audits = audits.filter(a => a.action === state.audit.filterAction);
   }
@@ -473,9 +520,27 @@ audits.sort((a, b) => b.at - a.at);
     return acc;
   }, {});
 
+  const summary = buildAuditSummary(audits);
+
   app.innerHTML = `
     <section class="admin-audit">
       <h2>🧾 System Audit Log</h2>
+
+<div class="audit-summary">
+   <h3>📊 Summary</h3>
+   <div>
+     <strong>By Action:</strong>
+     ${Object.entries(summary.byAction)
+       .map(([k, v]) => `<span>${k}: ${v}</span>`)
+       .join(" | ")}
+   </div>
+   <div>
+     <strong>By Admin:</strong>
+     ${Object.entries(summary.byAdmin)
+       .map(([k, v]) => `<span>${k}: ${v}</span>`)
+       .join(" | ")}
+   </div>
+ </div>      
 
 <div class="audit-tools">
   <input
@@ -725,6 +790,13 @@ const PNG_A4_PRESET = {
   baseFontSize: 14
 };
 
+ function getExportMeta() {
+   return {
+     generatedBy: state.admin.user || "unknown",
+     generatedAt: new Date().toISOString()
+   };
+ }
+    
 function buildOrderPNGContainer(order) {
   const c = document.createElement("div");
 
@@ -987,12 +1059,20 @@ const last = order.audit[order.audit.length - 1];
 function exportAuditLog(format = "json") {
   if (!requireAdmin()) return;
 
+  const meta = getExportMeta();
+
 let audits = state.orders
     .flatMap(o => (o.audit || []).map(a => ({
       ...a,
       orderId: o.id
     })))
     .sort((a, b) => b.at - a.at);
+
+ audits = applyRelativeDateFilter(
+   audits,
+   state.audit.lastDays
+ );
+
 
   if (state.audit.filterAction !== "all") {
     audits = audits.filter(a => a.action === state.audit.filterAction);
@@ -1027,13 +1107,18 @@ let audits = state.orders
   let filename = `audit-log.${format}`;
 
   if (format === "csv") {
-    const header = "orderId,action,by,at\n";
+    const header =
+    `# generatedBy=${meta.generatedBy}, generatedAt=${meta.generatedAt}\n` +
+    "orderId,action,by,at\n";
     const rows = data.map(d =>
       `${d.orderId},${d.action},${d.by},${d.at}`
     ).join("\n");
     blob = new Blob([header + rows], { type: "text/csv" });
   } else {
-    blob = new Blob([JSON.stringify(data, null, 2)], {
+    blob = new Blob([JSON.stringify({
+    meta,
+    records: data
+  }, null, 2)], {
       type: "application/json"
     });
   }
@@ -1043,7 +1128,7 @@ let audits = state.orders
   a.href = url;
   a.download = filename;
   a.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
     
 function archiveOrder(orderId) {
@@ -1190,6 +1275,8 @@ function svgToImage(element, width, height) {
 
    logAudit(order, AUDIT_ACTION.EXPORT_PDF);
 
+   const meta = getExportMeta();
+
    const win = window.open("", "_blank");
    if (!win) return;
 
@@ -1269,7 +1356,8 @@ body {
 
        <div class="pdf-content">
          <div class="section muted">
-           Printed at: ${new Date().toLocaleString()}
+           Printed at: ${new Date(meta.generatedAt).toLocaleString()}
+           <br/>Generated by: ${meta.generatedBy}
          </div>
 
          <h1>Order ${order.id}</h1>
@@ -1389,6 +1477,7 @@ function toggleBatchShippedOnly(value) {
     =============================== */
 function boot() {
    loadOrders();
+   loadAuditFilter();
    renderHeader();
    render();
  }
