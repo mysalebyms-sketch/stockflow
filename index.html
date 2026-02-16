@@ -87,7 +87,54 @@
 
  .delta.plus { color: var(--success); }
  .delta.minus { color: var(--danger); }
-    
+
+ .diff-matrix {
+   width: 100%;
+   border-collapse: collapse;
+   margin: 12px 0;
+   font-size: 13px;
+ }
+
+ .diff-matrix th,
+ .diff-matrix td {
+   padding: 8px 10px;
+   border-bottom: 1px solid var(--gray-200);
+   text-align: right;
+ }
+
+ .diff-matrix th:first-child,
+ .diff-matrix td:first-child {
+   text-align: left;
+ }
+
+ .diff-matrix thead th {
+   color: var(--gray-600);
+   font-weight: 600;
+   font-size: 12px;
+ }
+   
+ .diff-matrix tr.delta-new {
+   background: rgba(22, 163, 74, 0.08); /* success */
+ }
+
+ .diff-matrix tr.delta-removed {
+   background: rgba(220, 38, 38, 0.08); /* danger */
+ }
+
+ .diff-matrix tr.delta-new td:first-child::before {
+   content: "🆕 ";
+ }
+
+ .diff-matrix tr.delta-removed td:first-child::before {
+   content: "🗑️ ";
+ }
+   
+ .diff-matrix .delta {
+   display: inline-block;
+   min-width: 28px;
+   text-align: right;
+ }
+
   </style>
 
   <!-- =================================================
