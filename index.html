@@ -124,7 +124,8 @@
     =============================== */
 const STORAGE_KEY = "stockviewer.orders";
 const AUDIT_FILTER_KEY = "stockviewer.audit.filters";    
-const AUDIT_PRESET_KEY = "stockviewer.audit.presets";    
+const AUDIT_PRESET_KEY = "stockviewer.audit.presets";   
+const ANALYTICS_SNAPSHOT_KEY = "stockviewer.analytics.snapshots";    
 
 function loadOrders() {
   try {
@@ -185,7 +186,26 @@ function saveOrders() {
      JSON.stringify(presets)
    );
  }
-    
+
+ function loadAnalyticsSnapshots() {
+   try {
+     return JSON.parse(
+       localStorage.getItem(ANALYTICS_SNAPSHOT_KEY)
+     ) || [];
+   } catch {
+     return [];
+   }
+ }
+
+ function saveAnalyticsSnapshot(snapshot) {
+   const list = loadAnalyticsSnapshots();
+   list.unshift(snapshot); // newest first
+   localStorage.setItem(
+     ANALYTICS_SNAPSHOT_KEY,
+     JSON.stringify(list.slice(0, 10)) // cap 10
+   );
+ }
+   
 const state = {
    products: [],
    selectedProduct: null,
@@ -609,6 +629,9 @@ function exportAnalyticsJSON() {
     }
   };
 
+  // STEP 14B — save snapshot
+  saveAnalyticsSnapshot(payload);
+
   const blob = new Blob(
     [JSON.stringify(payload, null, 2)],
     { type: "application/json" }
@@ -750,7 +773,7 @@ audits.sort((a, b) => b.at - a.at);
 }   
 
  function renderAdminAnalytics() {
-   const app = document.getElementById("app");
+  const app = document.getElementById("app");
 
   if (!state.admin.loggedIn) {
     state.view.screen = "list";
@@ -758,6 +781,8 @@ audits.sort((a, b) => b.at - a.at);
     return;
   }
 
+  const snapshots = loadAnalyticsSnapshots();
+  const lastSnapshot = snapshots[0]; 
   const audits = collectAllAudits();
   const trend = buildAuditTrendComparison(audits);
   const range = state.analytics.rangeDays;
@@ -769,6 +794,16 @@ audits.sort((a, b) => b.at - a.at);
   app.innerHTML = `
     <section class="admin-analytics">
       <h2>📈 Audit Insights</h2>
+
+      ${lastSnapshot ? `
+        <div class="analytics-snapshot">
+          <small>
+            📦 Last saved:
+            ${new Date(lastSnapshot.meta.generatedAt).toLocaleString()}
+            (${lastSnapshot.meta.rangeDays} days)
+          </small>
+        </div>
+      ` : ""}
 
       <div class="analytics-export">
         <button onclick="exportAnalyticsPNG()">🖼️ Export PNG</button>
