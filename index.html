@@ -219,6 +219,9 @@ const state = {
    fromDate: "",
    toDate: "",
    lastDays: null
+   },
+   analytics: {
+     rangeDays: 7 // 7 | 30  
    }
  };
    
@@ -510,6 +513,12 @@ function setAuditDateRange(from, to) {
   render();
 }
 
+// STEP 13B — Analytics Range Toggle
+function setAnalyticsRange(days) {
+  state.analytics.rangeDays = days;
+  render();
+}    
+
  function applyAuditPreset(preset) {
    Object.assign(state.audit, preset.filters);
    saveAuditFilter();
@@ -718,20 +727,37 @@ audits.sort((a, b) => b.at - a.at);
 
   const audits = collectAllAudits();
   const trend = buildAuditTrendComparison(audits);
+  const range = state.analytics.rangeDays;
+  const current =
+    range === 7 ? trend.last7 : trend.last30;
+  const currentCount =
+    range === 7 ? trend.count7 : trend.count30;
 
   app.innerHTML = `
     <section class="admin-analytics">
       <h2>📈 Audit Insights</h2>
 
+      <div class="analytics-toggle">
+    <button
+      onclick="setAnalyticsRange(7)"
+      ${state.analytics.rangeDays === 7 ? "disabled" : ""}
+    >7 Days</button>
+    <button
+      onclick="setAnalyticsRange(30)"
+      ${state.analytics.rangeDays === 30 ? "disabled" : ""}
+    >30 Days</button>
+  </div>
+
       <h3>Trend Compare</h3>
       <p>Last 7 days: ${trend.count7} actions</p>
       <p>Last 30 days: ${trend.count30} actions</p>
 
-<h3>Top Actions (Last 7 days)</h3>
+<h3>Top Actions (Last ${range} days)</h3>
  ${renderBarChart(
-   trend.last7.byAction,
-   Math.max(...Object.values(trend.last7.byAction), 1)
+   current.byAction,
+   Math.max(...Object.values(current.byAction), 1)
  )}
+
  <p>
    Δ vs 30 days:
    ${renderDelta(trend.count7, trend.count30)}
