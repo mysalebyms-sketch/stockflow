@@ -50,6 +50,44 @@
   ================================================== -->
   <style id="components-style">
     /* card / button / badge / sheet / input */
+
+ .bar-chart {
+   display: grid;
+   gap: 8px;
+   margin: 12px 0;
+ }
+
+ .bar-row {
+   display: flex;
+   align-items: center;
+   gap: 8px;
+   font-size: 12px;
+ }
+
+ .bar-label {
+   width: 120px;
+   color: var(--gray-600);
+ }
+
+ .bar-track {
+   flex: 1;
+   background: var(--gray-100);
+   border-radius: 6px;
+   overflow: hidden;
+ }
+
+ .bar-fill {
+   height: 10px;
+   background: var(--primary);
+ }
+
+ .delta {
+   font-weight: bold;
+ }
+
+ .delta.plus { color: var(--success); }
+ .delta.minus { color: var(--danger); }
+    
   </style>
 
   <!-- =================================================
@@ -517,6 +555,30 @@ function setAuditDateRange(from, to) {
      count30: last30.length
    };
  }   
+
+ function renderBarChart(data, max) {
+   return `
+     <div class="bar-chart">
+       ${Object.entries(data).map(([label, value]) => `
+         <div class="bar-row">
+           <div class="bar-label">${label}</div>
+           <div class="bar-track">
+             <div class="bar-fill" style="width:${(value / max) * 100}%"></div>
+           </div>
+           <div>${value}</div>
+         </div>
+       `).join("")}
+     </div>
+   `;
+ }
+
+ function renderDelta(current, previous) {
+   const diff = current - previous;
+   if (diff === 0) return `<span class="delta">0</span>`;
+   return diff > 0
+     ? `<span class="delta plus">+${diff}</span>`
+     : `<span class="delta minus">${diff}</span>`;
+ }
     
 function renderAdminAudit() {
   const app = document.getElementById("app");
@@ -665,11 +727,15 @@ audits.sort((a, b) => b.at - a.at);
       <p>Last 7 days: ${trend.count7} actions</p>
       <p>Last 30 days: ${trend.count30} actions</p>
 
-      <h3>Top Actions (Last 7 days)</h3>
-      ${Object.entries(trend.last7.byAction)
-        .sort((a,b) => b[1]-a[1])
-       .map(([k,v]) => `<div>${k}: ${v}</div>`)
-        .join("") || "<p>— ไม่มีข้อมูล —</p>"}
+<h3>Top Actions (Last 7 days)</h3>
+ ${renderBarChart(
+   trend.last7.byAction,
+   Math.max(...Object.values(trend.last7.byAction), 1)
+ )}
+ <p>
+   Δ vs 30 days:
+   ${renderDelta(trend.count7, trend.count30)}
+ </p>
 
       <h3>Top Admins (Last 7 days)</h3>
       ${Object.entries(trend.last7.byAdmin)
