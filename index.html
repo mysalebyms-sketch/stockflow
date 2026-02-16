@@ -114,11 +114,11 @@
  }
    
  .diff-matrix tr.delta-new {
-   background: rgba(22, 163, 74, 0.08); /* success */
+   background: rgba(22, 163, 74, 0.12); /* success */
  }
 
  .diff-matrix tr.delta-removed {
-   background: rgba(220, 38, 38, 0.08); /* danger */
+   background: rgba(220, 38, 38, 0.12); /* danger */
  }
 
  .diff-matrix tr.delta-new td:first-child::before {
@@ -134,6 +134,32 @@
    min-width: 28px;
    text-align: right;
  }
+
+ .diff-legend {
+   display: flex;
+   gap: 12px;
+   flex-wrap: wrap;
+   font-size: 12px;
+   color: var(--gray-600);
+   margin: 8px 0;
+ }
+
+ .diff-legend .legend-item.new { color: var(--success); }
+ .diff-legend .legend-item.removed { color: var(--danger); }
+ .diff-legend .legend-item.plus { color: var(--success); }
+ .diff-legend .legend-item.minus { color: var(--danger); }
+
+ .delta-toggle {
+   font-size: 12px;
+   color: var(--gray-600);
+   margin: 8px 0;
+   display: inline-block;
+ }
+  
+.muted {
+   color: var(--gray-400);
+   font-size: 12px;
+ }   
 
   </style>
 
@@ -288,8 +314,9 @@ const state = {
    lastDays: null
    },
    analytics: {
-     rangeDays: 7 // 7 | 30  
-     ,selectedSnapshotIndex: 0
+   rangeDays: 7,
+   selectedSnapshotIndex: 0,
+   hideZeroDelta: false
    }
  };
    
@@ -592,6 +619,11 @@ function setAnalyticsSnapshot(index) {
   render();
 }
 
+ function toggleZeroDelta(value) {
+   state.analytics.hideZeroDelta = value;
+   render();
+ }
+    
  function applyAuditPreset(preset) {
    Object.assign(state.audit, preset.filters);
    saveAuditFilter();
@@ -683,7 +715,15 @@ function buildDiffMatrix(current = {}, previous = {}) {
 function renderDiffMatrix(rows) {
   if (!rows.length) return "<p>— ไม่มีข้อมูล —</p>";
 
-  const sorted = [...rows].sort(
+  const filtered = state.analytics.hideZeroDelta
+    ? rows.filter(r => r.delta !== 0)
+    : rows;
+
+  if (!filtered.length) {
+    return "<p class='muted'>— ไม่มีรายการเปลี่ยนแปลง —</p>";
+  }
+
+  const sorted = [...filtered].sort(
     (a, b) => Math.abs(b.delta) - Math.abs(a.delta)
   );
 
@@ -965,6 +1005,22 @@ audits.sort((a, b) => b.at - a.at);
 <h3>Top Actions (Last ${range} days)</h3>
  ${trendSnapshot ? `
   <h4>Δ by Action (Snapshot → Current)</h4>
+
+ <label class="delta-toggle">
+   <input type="checkbox"
+     ${state.analytics.hideZeroDelta ? "checked" : ""}
+     onchange="toggleZeroDelta(this.checked)"
+   />
+   ซ่อนรายการ Δ = 0
+ </label>
+
+ <div class="diff-legend">
+   <span class="legend-item new">🆕 New (เพิ่มจาก 0)</span>
+   <span class="legend-item removed">🗑️ Removed (เหลือ 0)</span>
+   <span class="legend-item plus">+ เพิ่มขึ้น</span>
+   <span class="legend-item minus">− ลดลง</span>
+ </div>
+
 ${renderDiffMatrix(
    buildDiffMatrix(
      range === 7 ? trendNow.last7.byAction : trendNow.last30.byAction,
