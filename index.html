@@ -483,6 +483,16 @@ function setAuditDateRange(from, to) {
    const since = Date.now() - days * 24 * 60 * 60 * 1000;
    return audits.filter(a => a.at >= since);
  }
+
+  function collectAllAudits() {
+    return state.orders.flatMap(o =>
+      (o.audit || []).map(a => ({
+        ...a,
+        orderId: o.id
+      }))
+    );
+  }
+   
     
  function buildAuditSummary(audits) {
    const byAction = {};
@@ -495,6 +505,18 @@ function setAuditDateRange(from, to) {
 
    return { byAction, byAdmin };
  }
+
+ function buildAuditTrendComparison(audits) {
+   const last7 = applyRelativeDateFilter(audits, 7);
+   const last30 = applyRelativeDateFilter(audits, 30);
+
+   return {
+     last7: buildAuditSummary(last7),
+     last30: buildAuditSummary(last30),
+     count7: last7.length,
+     count30: last30.length
+   };
+ }   
     
 function renderAdminAudit() {
   const app = document.getElementById("app");
@@ -624,9 +646,40 @@ audits.sort((a, b) => b.at - a.at);
 }   
 
  function renderAdminAnalytics() {
-   if (!state.admin.loggedIn) return;
-   // reuse audit selectors
-   // read-only insight view only
+   const app = document.getElementById("app");
+
+  if (!state.admin.loggedIn) {
+    state.view.screen = "list";
+    render();
+    return;
+  }
+
+  const audits = collectAllAudits();
+  const trend = buildAuditTrendComparison(audits);
+
+  app.innerHTML = `
+    <section class="admin-analytics">
+      <h2>📈 Audit Insights</h2>
+
+      <h3>Trend Compare</h3>
+      <p>Last 7 days: ${trend.count7} actions</p>
+      <p>Last 30 days: ${trend.count30} actions</p>
+
+      <h3>Top Actions (Last 7 days)</h3>
+      ${Object.entries(trend.last7.byAction)
+        .sort((a,b) => b[1]-a[1])
+       .map(([k,v]) => `<div>${k}: ${v}</div>`)
+        .join("") || "<p>— ไม่มีข้อมูล —</p>"}
+
+      <h3>Top Admins (Last 7 days)</h3>
+      ${Object.entries(trend.last7.byAdmin)
+        .sort((a,b) => b[1]-a[1])
+        .map(([k,v]) => `<div>${k}: ${v}</div>`)
+        .join("") || "<p>— ไม่มีข้อมูล —</p>"}
+
+      <button onclick="openAuditViewer()">← Back to Audit</button>
+    </section>
+  `;
  }
     
 function renderAdminOrders() {
