@@ -636,6 +636,10 @@ function buildDiffMatrix(current = {}, previous = {}) {
 function renderDiffMatrix(rows) {
   if (!rows.length) return "<p>— ไม่มีข้อมูล —</p>";
 
+  const sorted = [...rows].sort(
+    (a, b) => Math.abs(b.delta) - Math.abs(a.delta)
+  );
+
   return `
     <table class="diff-matrix">
       <thead>
@@ -647,8 +651,14 @@ function renderDiffMatrix(rows) {
         </tr>
       </thead>
       <tbody>
-        ${rows.map(r => `
-          <tr>
+        ${sorted.map(r => `
+          <tr class="${
+      r.previous === 0 && r.current > 0
+        ? 'delta-new'
+        : r.previous > 0 && r.current === 0
+        ? 'delta-removed'
+        : ''
+    }">
             <td>${r.key}</td>
             <td>${r.previous}</td>
             <td>${r.current}</td>
@@ -908,12 +918,12 @@ audits.sort((a, b) => b.at - a.at);
 <h3>Top Actions (Last ${range} days)</h3>
  ${trendSnapshot ? `
   <h4>Δ by Action (Snapshot → Current)</h4>
-  ${renderDiffMatrix(
-    buildDiffMatrix(
-      trendNow.last7.byAction,
-      trendSnapshot.last7.byAction
-    )
-  )}
+${renderDiffMatrix(
+   buildDiffMatrix(
+     range === 7 ? trendNow.last7.byAction : trendNow.last30.byAction,
+     range === 7 ? trendSnapshot.last7.byAction : trendSnapshot.last30.byAction
+   )
+ )}
 ` : ""}
 
  <p>
@@ -935,12 +945,12 @@ audits.sort((a, b) => b.at - a.at);
  
 ${trendSnapshot ? `
   <h3>Δ by Admin (Last 7 days)</h3>
-  ${renderDiffMatrix(
-    buildDiffMatrix(
-      trendNow.last7.byAdmin,
-      trendSnapshot.last7.byAdmin
-    )
-  )}
+${renderDiffMatrix(
+   buildDiffMatrix(
+     range === 7 ? trendNow.last7.byAdmin : trendNow.last30.byAdmin,
+     range === 7 ? trendSnapshot.last7.byAdmin : trendSnapshot.last30.byAdmin
+   )
+ )}
 ` : ""}
 
       <button onclick="openAuditViewer()">← Back to Audit</button>
