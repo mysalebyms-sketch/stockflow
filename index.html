@@ -286,7 +286,16 @@ function saveOrders() {
      if (!raw) return;
      const parsed = JSON.parse(raw);
      if (typeof parsed === "object") {
-       Object.assign(state.analytics, parsed);
+       if (typeof parsed.rangeDays === "number") {
+        state.analytics.rangeDays = parsed.rangeDays;
+      }
+      if (typeof parsed.hideZeroDelta === "boolean") {
+        state.analytics.hideZeroDelta = parsed.hideZeroDelta;
+      }
+      if (typeof parsed.selectedSnapshotIndex === "number") {
+        state.analytics.selectedSnapshotIndex = parsed.selectedSnapshotIndex;
+      }
+
      }
    } catch {}
  }
@@ -296,7 +305,8 @@ function saveOrders() {
      ANALYTICS_PREF_KEY,
      JSON.stringify({
        rangeDays: state.analytics.rangeDays,
-       hideZeroDelta: state.analytics.hideZeroDelta
+       hideZeroDelta: state.analytics.hideZeroDelta,
+       selectedSnapshotIndex: state.analytics.selectedSnapshotIndex
      })
    );
  }
@@ -639,6 +649,7 @@ function setAnalyticsRange(days) {
 
 function setAnalyticsSnapshot(index) {
   state.analytics.selectedSnapshotIndex = Number(index) || 0;
+  saveAnalyticsPrefs();
   render();
 }
 
