@@ -198,7 +198,8 @@
 const STORAGE_KEY = "stockviewer.orders";
 const AUDIT_FILTER_KEY = "stockviewer.audit.filters";    
 const AUDIT_PRESET_KEY = "stockviewer.audit.presets";   
-const ANALYTICS_SNAPSHOT_KEY = "stockviewer.analytics.snapshots";    
+const ANALYTICS_SNAPSHOT_KEY = "stockviewer.analytics.snapshots";  
+const ANALYTICS_PREF_KEY = "stockviewer.analytics.prefs";    
 
 function loadOrders() {
   try {
@@ -276,6 +277,27 @@ function saveOrders() {
    localStorage.setItem(
      ANALYTICS_SNAPSHOT_KEY,
      JSON.stringify(list.slice(0, 10)) // cap 10
+   );
+ }
+
+ function loadAnalyticsPrefs() {
+   try {
+     const raw = localStorage.getItem(ANALYTICS_PREF_KEY);
+     if (!raw) return;
+     const parsed = JSON.parse(raw);
+     if (typeof parsed === "object") {
+       Object.assign(state.analytics, parsed);
+     }
+   } catch {}
+ }
+
+ function saveAnalyticsPrefs() {
+   localStorage.setItem(
+     ANALYTICS_PREF_KEY,
+     JSON.stringify({
+       rangeDays: state.analytics.rangeDays,
+       hideZeroDelta: state.analytics.hideZeroDelta
+     })
    );
  }
    
@@ -611,6 +633,7 @@ function setAuditDateRange(from, to) {
 // STEP 13B — Analytics Range Toggle
 function setAnalyticsRange(days) {
   state.analytics.rangeDays = days;
+  saveAnalyticsPrefs();
   render();
 }    
 
@@ -621,6 +644,7 @@ function setAnalyticsSnapshot(index) {
 
  function toggleZeroDelta(value) {
    state.analytics.hideZeroDelta = value;
+   saveAnalyticsPrefs();
    render();
  }
     
@@ -1969,6 +1993,7 @@ function toggleBatchShippedOnly(value) {
 function boot() {
    loadOrders();
    loadAuditFilter();
+   loadAnalyticsPrefs();
    renderHeader();
    render();
  }
