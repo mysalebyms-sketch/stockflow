@@ -1523,8 +1523,12 @@ function openOrderDetail(orderId) {
 }
 
 function openOrderFromAudit(orderId) {
-  if (!orderId) return;
+if (!orderId) return;
   state.selectedOrderId = orderId;
+  state.audit.jumpTo = {
+    action: event?.currentTarget?.dataset?.action,
+    at: event?.currentTarget?.querySelector("span:last-child")?.textContent
+  }; // transient
   renderAdminOrderDetail();
 }    
 
@@ -1568,8 +1572,12 @@ function renderAdminOrderDetail() {
 
       <div class="order-audit-log">
         <h4>🧾 Audit Trail</h4>
-        ${(order.audit || []).map(log => `
-          <div class="audit-item">
+ ${(order.audit || []).map(log => `
+   <div
+     class="audit-item"
+     data-action="${log.action}"
+     data-at="${log.at}"
+   >
             <span>${log.action}</span>
             <span>by ${log.by}</span>
             <span>${new Date(log.at).toLocaleString()}</span>
@@ -1599,6 +1607,20 @@ function renderAdminOrderDetail() {
       <button onclick="renderAdminOrders()">← กลับรายการ</button>
     </section>
   `;
+  // STEP 18.14 — auto-scroll + highlight audit record
+  if (state.audit.jumpTo) {
+    const el = document.querySelector(
+      `.order-audit-log .audit-item[data-action="${state.audit.jumpTo.action}"]`
+    );
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("alert-highlight--primary");
+      setTimeout(() => {
+        el.classList.remove("alert-highlight--primary");
+      }, 1500);
+    }
+    state.audit.jumpTo = null; // cleanup
+  }
 }    
   </script>
 
