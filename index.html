@@ -965,6 +965,21 @@ audits.sort((a, b) => b.at - a.at);
   }
 
   const snapshots = loadAnalyticsSnapshots();
+
+  // STEP 16E — clamp selectedSnapshotIndex
+  if (snapshots.length === 0) {
+    if (state.analytics.selectedSnapshotIndex !== 0) {
+      state.analytics.selectedSnapshotIndex = 0;
+      saveAnalyticsPrefs();
+    }
+  } else if (
+    state.analytics.selectedSnapshotIndex < 0 ||
+    state.analytics.selectedSnapshotIndex >= snapshots.length
+  ) {
+    state.analytics.selectedSnapshotIndex = 0;
+    saveAnalyticsPrefs();
+  }
+
   const selected =
     snapshots[state.analytics.selectedSnapshotIndex] || null;
   const lastSnapshot = snapshots[0];
