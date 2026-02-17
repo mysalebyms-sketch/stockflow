@@ -1831,11 +1831,14 @@ function exportAuditLog(format = "json") {
   const meta = getExportMeta();
 
 let audits = state.orders
-   .flatMap(o => (o.audit || []).map(a => ({
-    ...a,
-    orderId: o.id
-  })))
+  .flatMap(o =>
+    (o.audit || []).map(a => ({
+      ...a,
+      orderId: o.id
+    }))
+  )
   .sort((a, b) => b.at - a.at);
+
 
  audits = applyRelativeDateFilter(
    audits,
