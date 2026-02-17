@@ -712,7 +712,7 @@ function buildDiffMatrix(current = {}, previous = {}) {
     ...Object.keys(previous)
   ]);
 
-  return Array.from(keys).map(k => {
+  return Array.from(keys).sort().map(k => {
     const cur = current[k] || 0;
     const prev = previous[k] || 0;
     return {
@@ -993,6 +993,9 @@ audits.sort((a, b) => b.at - a.at);
   ? selected.data
   : null;
   const range = state.analytics.rangeDays;
+  const snapshotRangeMismatch =
+   trendSnapshot &&
+   selected.meta.rangeDays !== range; 
   const base =
   trendSnapshot
     ? (range === 7
@@ -1010,6 +1013,12 @@ audits.sort((a, b) => b.at - a.at);
      <p class="muted">
        ⚠️ Snapshot ที่เลือกไว้ไม่พบในระบบ
        ระบบได้เปลี่ยนกลับไปใช้ Snapshot ล่าสุดโดยอัตโนมัติ
+     </p>
+     ` : ""}
+
+     ${snapshotRangeMismatch ? `
+     <p class="muted">
+       ⚠️ Snapshot นี้ถูกบันทึกด้วยช่วงเวลา ${selected.meta.rangeDays} วัน
      </p>
      ` : ""}
 
@@ -1083,15 +1092,18 @@ audits.sort((a, b) => b.at - a.at);
 
 ${renderDiffMatrix(
    buildDiffMatrix(
-     range === 7 ? trendNow.last7.byAction : trendNow.last30.byAction,
-     range === 7 ? trendSnapshot.last7.byAction : trendSnapshot.last30.byAction
-   )
+    range === 7 ? trendSnapshot.last7.byAction : trendSnapshot.last30.byAction,
+    range === 7 ? trendNow.last7.byAction : trendNow.last30.byAction
+  )
  )}
 ` : ""}
 
  <p>
    Δ vs 30 days:
-   ${renderDelta(trendNow.count7, trendNow.count30)}
+   ${range === 7
+    ? renderDelta(trendNow.count7, trendNow.count30)
+    : renderDelta(trendNow.count30, trendNow.count7)
+  }
  </p>
 
  ${trendSnapshot ? `
@@ -1110,9 +1122,9 @@ ${trendSnapshot ? `
   <h3>Δ by Admin (Last 7 days)</h3>
 ${renderDiffMatrix(
    buildDiffMatrix(
-     range === 7 ? trendNow.last7.byAdmin : trendNow.last30.byAdmin,
-     range === 7 ? trendSnapshot.last7.byAdmin : trendSnapshot.last30.byAdmin
-   )
+    range === 7 ? trendSnapshot.last7.byAdmin : trendSnapshot.last30.byAdmin,
+    range === 7 ? trendNow.last7.byAdmin : trendNow.last30.byAdmin
+  )
  )}
 ` : ""}
 
