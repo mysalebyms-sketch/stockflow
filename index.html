@@ -473,10 +473,18 @@ function openAlertAudit(severity) {
      ? trendNow.last7.byAction
      : trendNow.last30.byAction;
  const rows = buildDiffMatrix({}, base);
- const top = buildTopAlerts(rows)
-   .find(a => a.severity === severity);
+ const ranked = buildTopAlerts(rows)
+   .filter(a => a.severity === severity)
+   .sort((a, b) => {
+     // STEP 18.8 — priority ranking
+     if (b.score !== a.score) return b.score - a.score;        // score สูงก่อน
+     return Math.abs(b.delta) - Math.abs(a.delta);             // impact สูงก่อน
+   });
 
- state.audit.alertTargetAction = top ? top.key : null;
+ const top = ranked[0];
+
+ state.audit.alertTargetAction =
+   top && top.key ? top.key : null;
   render();
 }
     
