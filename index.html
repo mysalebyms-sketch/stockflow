@@ -1196,7 +1196,7 @@ const score =
 <div
     class="audit-item"
     data-action="${a.action}"
-    onclick="jumpToAuditRecord(this)"
+    onclick="openOrderFromAudit('${a.orderId}')"
  >
                 <span>Order: ${a.orderId}</span>
                 <span>by ${a.by}</span>
@@ -1521,6 +1521,12 @@ function openOrderDetail(orderId) {
   state.selectedOrderId = orderId;
   renderAdminOrderDetail();
 }
+
+function openOrderFromAudit(orderId) {
+  if (!orderId) return;
+  state.selectedOrderId = orderId;
+  renderAdminOrderDetail();
+}    
 
 function renderAdminOrderDetail() {
   const app = document.getElementById("app");
