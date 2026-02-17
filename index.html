@@ -1228,9 +1228,9 @@ audits.sort((a, b) => b.at - a.at);
    </span>
    ${action}
  </h3>
-{state.audit.collapsedActions[action]
-   ? ""
-   : list.map(a => `
+${state.audit.collapsedActions[action]
+    ? ""
+    : list.map(a => `
 <div
     class="audit-item"
     data-action="${a.action}"
@@ -1242,7 +1242,8 @@ audits.sort((a, b) => b.at - a.at);
                 <span>${new Date(a.at).toLocaleString()}</span>
               </div>
             `).join("")}
-          `).join("")}
+          `).join("")
+      }
       <button onclick="renderAdminOrders()">← กลับ Admin</button>
     </section>
   `;
