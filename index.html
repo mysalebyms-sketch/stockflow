@@ -219,6 +219,15 @@
   padding: 2px 6px;
   border-radius: var(--r-sm);
 }
+
+.audit-item {
+  cursor: pointer;
+}
+
+.audit-item:hover {
+  background: rgba(0,0,0,0.03);
+}
+    
     
 .insight-summary {
   margin: 8px 0 12px;
@@ -527,6 +536,22 @@ function openSheet(id) {
    state.ui.overlayCount = Math.max(0, state.ui.overlayCount - 1);
  }
 
+function jumpToAuditRecord(el) {
+  if (!el) return;
+
+  el.scrollIntoView({
+    behavior: "smooth",
+    block: "center"
+  });
+
+  el.classList.add("alert-highlight--primary");
+
+  // auto clear highlight
+  setTimeout(() => {
+    el.classList.remove("alert-highlight--primary");
+  }, 1500);
+}
+   
   </script>
 
   <script>
@@ -1168,10 +1193,11 @@ const score =
               data-action="${action}"
             >${action}</h3>
             ${list.map(a => `
-              <div
-                 class="audit-item"
-                 data-action="${a.action}"
-               >
+<div
+    class="audit-item"
+    data-action="${a.action}"
+    onclick="jumpToAuditRecord(this)"
+ >
                 <span>Order: ${a.orderId}</span>
                 <span>by ${a.by}</span>
                 <span>${new Date(a.at).toLocaleString()}</span>
