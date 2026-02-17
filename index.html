@@ -1117,13 +1117,11 @@ if (state.audit.toDate) {
 audits.sort((a, b) => b.at - a.at);  
 
   // STEP 18.5 — filter by alert severity (transient)
-  if (state.audit.alertSeverity) {
-    audits = audits.filter(a => {
-const score =
-     state.audit.alertSeverity === "critical" ? 3 : 2;
-    return getAlertSeverity(score) === state.audit.alertSeverity;
-    });
-  }
+ if (state.audit.alertSeverity && state.audit.alertTargetActions?.length) {
+   audits = audits.filter(a =>
+     state.audit.alertTargetActions.includes(a.action)
+   );
+ }
   
   const grouped = audits.reduce((acc, a) => {
     if (!acc[a.action]) acc[a.action] = [];
