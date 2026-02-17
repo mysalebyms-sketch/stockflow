@@ -185,6 +185,11 @@
   color: var(--gray-900);
 }
 
+.alert-highlight {
+  outline: 2px solid var(--danger);
+  background: rgba(220, 38, 38, 0.08);
+}
+    
 .insight-summary {
   margin: 8px 0 12px;
   font-size: 13px;
@@ -377,7 +382,8 @@ const state = {
    search: "",
    fromDate: "",
    toDate: "",
-   lastDays: null
+   lastDays: null,
+   alertTargetAction: null // STEP 18.6 (transient)
    },
    analytics: {
    rangeDays: 7,
@@ -458,6 +464,7 @@ function openAlertAnalytics() {
 function openAlertAudit(severity) {
   state.view.screen = "audit";
   state.audit.alertSeverity = severity; // transient
+  state.audit.alertTargetAction = null; // will resolve in render
   render();
 }
     
@@ -1096,9 +1103,15 @@ const score =
       ${Object.keys(grouped).length === 0
         ? "<p>— ไม่มี Audit —</p>"
         : Object.entries(grouped).map(([action, list]) => `
-            <h3>${action}</h3>
+            <h3
+              class="audit-action"
+              data-action="${action}"
+            >${action}</h3>
             ${list.map(a => `
-              <div class="audit-item">
+              <div
+                 class="audit-item"
+                 data-action="${a.action}"
+               >
                 <span>Order: ${a.orderId}</span>
                 <span>by ${a.by}</span>
                 <span>${new Date(a.at).toLocaleString()}</span>
@@ -1109,9 +1122,27 @@ const score =
     </section>
   `;
 
-    state.audit.alertSeverity = null;
+ // STEP 18.6 — scroll & highlight alert target
+ if (state.audit.alertSeverity) {
+   const firstAction = Object.keys(grouped)[0];
+   if (firstAction) {
+     const header = document.querySelector(
+       `.audit-action[data-action="${firstAction}"]`
+     );
+     if (header) {
+       header.scrollIntoView({ behavior: "smooth", block: "start" });
+       header.classList.add("alert-highlight");
 
-}   
+       document
+         .querySelectorAll(`.audit-item[data-action="${firstAction}"]`)
+         .forEach(el => el.classList.add("alert-highlight"));
+     }
+   }
+ }
+  
+    state.audit.alertTargetAction = null;
+
+ }   
 
  function renderAdminAnalytics() {
   const app = document.getElementById("app");
