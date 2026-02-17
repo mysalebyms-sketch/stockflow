@@ -403,7 +403,19 @@ function renderHeader() {
 
 function renderAlertBadge(count) {
   if (!count) return "";
-  return `<span class="alert-badge">⚠️ ${count}</span>`;
+  return `
+    <span class="alert-badge"
+      onclick="openAlertAnalytics()"
+      title="ดูรายการแจ้งเตือน">
+      ⚠️ ${count}
+    </span>`;
+}
+
+// STEP 18.3 — Open Analytics from Alert Badge
+function openAlertAnalytics() {
+  state.view.screen = "analytics";
+  state.analytics.alertOnly = true; // transient flag
+  render();
 }
     
 function openSheet(id) {
@@ -770,6 +782,13 @@ function detectAnomaly(row) {
   return false;
 }
 
+// STEP 18.3 — Alert Severity
+function getAlertSeverity(score) {
+  if (score >= 3) return "critical";
+  if (score === 2) return "warning";
+  return "info";
+}    
+
 // STEP 18.1 — Human-readable Insight Summary
 function buildInsightSummary(rows = []) {
   if (!rows.length) return "ยังไม่มีข้อมูลการเปลี่ยนแปลงที่สำคัญ";
@@ -800,7 +819,8 @@ function buildTopAlerts(rows = []) {
     .map(r => ({
       key: r.key,
       delta: r.delta,
-      score: scoreDelta(r)
+      score: scoreDelta(r),
+      severity: getAlertSeverity(scoreDelta(r))
     }))
     .filter(a => a.score >= 3);
 }   
@@ -1074,6 +1094,7 @@ audits.sort((a, b) => b.at - a.at);
   const trendSnapshot = selected
   ? selected.data
   : null;
+  const alertOnly = state.analytics.alertOnly; 
   const range = state.analytics.rangeDays;
   const snapshotRangeMismatch =
    trendSnapshot &&
@@ -1187,11 +1208,16 @@ audits.sort((a, b) => b.at - a.at);
  </div>
 
 ${renderDiffMatrix(
-   buildDiffMatrix(
-    range === 7 ? trendSnapshot.last7.byAction : trendSnapshot.last30.byAction,
-    range === 7 ? trendNow.last7.byAction : trendNow.last30.byAction
-  )
- )}
+  (() => {
+    const rows = buildDiffMatrix(
+      range === 7 ? trendSnapshot.last7.byAction : trendSnapshot.last30.byAction,
+      range === 7 ? trendNow.last7.byAction : trendNow.last30.byAction
+    );
+    return alertOnly
+      ? rows.filter(r => detectAnomaly(r) && scoreDelta(r) >= 3)
+      : rows;
+  })()
+)}
 ` : ""}
 
  <p>
@@ -1230,6 +1256,7 @@ ${renderDiffMatrix(
 
    // STEP 16F — clear one-time notice
   state.analytics.snapshotResetNotice = false;
+  state.analytics.alertOnly = false;
  }
     
 function renderAdminOrders() {
