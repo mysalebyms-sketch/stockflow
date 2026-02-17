@@ -215,6 +215,15 @@
   font-size: 12px;
 }
 
+.audit-action {
+  position: sticky;
+  top: 0;
+  background: var(--white);
+  z-index: 2;
+  padding: 6px 0;
+  cursor: pointer;
+}    
+
 .audit-alert-legend span {
   padding: 2px 6px;
   border-radius: var(--r-sm);
@@ -423,7 +432,8 @@ const state = {
    toDate: "",
    lastDays: null,
    alertTargetActions: [],
-   returnScrollTop: null   // STEP 18.15 — transient
+   returnScrollTop: null,
+   collapsedActions: {} // STEP 18.18 — per action
    },
    analytics: {
    rangeDays: 7,
@@ -552,7 +562,13 @@ function jumpToAuditRecord(el) {
     el.classList.remove("alert-highlight--primary");
   }, 1500);
 }
-   
+
+function toggleAuditGroup(action) {
+  state.audit.collapsedActions[action] =
+    !state.audit.collapsedActions[action];
+  render();
+}
+    
   </script>
 
   <script>
@@ -1202,11 +1218,19 @@ audits.sort((a, b) => b.at - a.at);
       ${Object.keys(grouped).length === 0
         ? "<p>— ไม่มี Audit —</p>"
         : Object.entries(grouped).map(([action, list]) => `
-            <h3
-              class="audit-action"
-              data-action="${action}"
-            >${action}</h3>
-            ${list.map(a => `
+<h3
+   class="audit-action"
+   data-action="${action}"
+   onclick="toggleAuditGroup('${action}')"
+ >
+   <span class="audit-toggle">
+     ${state.audit.collapsedActions[action] ? "▸" : "▾"}
+   </span>
+   ${action}
+ </h3>
+{state.audit.collapsedActions[action]
+   ? ""
+   : list.map(a => `
 <div
     class="audit-item"
     data-action="${a.action}"
