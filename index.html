@@ -377,18 +377,35 @@ const state = {
 function renderHeader() {
    const header = document.getElementById("app-header");
 
+// STEP 18.2 — compute alert count (lightweight)
+   let alertCount = 0;
+   if (state.admin.loggedIn) {
+     const audits = collectAllAudits();
+     const trendNow = buildAuditTrendComparison(audits);
+     const base = state.analytics.rangeDays === 7
+       ? trendNow.last7.byAction
+       : trendNow.last30.byAction;
+     const rows = buildDiffMatrix({}, base);
+     alertCount = buildTopAlerts(rows).length;
+   }  
+
    header.innerHTML = `
      <div class="title">Stock Viewer</div>
      <div class="actions">
        ${
          state.admin.loggedIn
-           ? `<span>${state.admin.user}</span>`
+           ? `<span>${state.admin.user}</span> ${renderAlertBadge(alertCount)}`
            : `<button onclick="openLogin()">🔒 ล็อกอิน</button>`
        }
      </div>
    `;
  }
 
+function renderAlertBadge(count) {
+  if (!count) return "";
+  return `<span class="alert-badge">⚠️ ${count}</span>`;
+}
+    
 function openSheet(id) {
    document.getElementById(id)?.classList.add("show");
    state.ui.overlayCount++;
@@ -775,7 +792,18 @@ function buildInsightSummary(rows = []) {
 
   return `ℹ️ กิจกรรมมีทั้งเพิ่มและลด (↑${positives.length} ↓${negatives.length})`;
 }
-    
+
+// STEP 18.2 — Build Top Alerts (attention layer)
+function buildTopAlerts(rows = []) {
+  return rows
+    .filter(r => detectAnomaly(r))
+    .map(r => ({
+      key: r.key,
+      delta: r.delta,
+      score: scoreDelta(r)
+    }))
+    .filter(a => a.score >= 3);
+}   
     
  function renderBarChart(data, max) {
    return `
