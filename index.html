@@ -205,6 +205,20 @@
   outline: 1px dashed var(--gray-400);
   background: rgba(220, 38, 38, 0.03);
 }    
+
+/* STEP 18.11 — Alert Priority Legend */
+.audit-alert-legend {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 6px 0 12px;
+  font-size: 12px;
+}
+
+.audit-alert-legend span {
+  padding: 2px 6px;
+  border-radius: var(--r-sm);
+}
     
 .insight-summary {
   margin: 8px 0 12px;
@@ -1081,6 +1095,16 @@ const score =
   app.innerHTML = `
     <section class="admin-audit">
       <h2>🧾 System Audit Log</h2>
+
+      <!-- STEP 18.11 — Alert Priority Legend -->
+  ${state.audit.alertSeverity ? `
+    <div class="audit-alert-legend muted">
+      <strong>ระดับความสำคัญ:</strong>
+      <span class="alert-highlight--primary">Top 1</span>
+      <span class="alert-highlight--secondary">Top 2</span>
+      <span class="alert-highlight--tertiary">Top 3</span>
+    </div>
+  ` : ""}
 
 <div class="audit-summary">
    <h3>📊 Summary</h3>
