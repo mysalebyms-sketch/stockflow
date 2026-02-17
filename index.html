@@ -159,6 +159,11 @@
    margin: 8px 0;
    display: inline-block;
  }
+
+.insight-summary {
+  margin: 8px 0 12px;
+  font-size: 13px;
+}    
   
 .muted {
    color: var(--gray-400);
@@ -747,6 +752,30 @@ function detectAnomaly(row) {
   if (Math.abs(row.delta) >= 10) return true;
   return false;
 }
+
+// STEP 18.1 — Human-readable Insight Summary
+function buildInsightSummary(rows = []) {
+  if (!rows.length) return "ยังไม่มีข้อมูลการเปลี่ยนแปลงที่สำคัญ";
+
+  const anomalies = rows.filter(detectAnomaly);
+  const positives = rows.filter(r => r.delta > 0);
+  const negatives = rows.filter(r => r.delta < 0);
+
+  if (anomalies.length > 0) {
+    return `⚠️ พบความเปลี่ยนแปลงผิดปกติ ${anomalies.length} รายการ ควรตรวจสอบเพิ่มเติม`;
+  }
+
+  if (positives.length && !negatives.length) {
+    return `📈 กิจกรรมโดยรวมเพิ่มขึ้น (${positives.length} รายการ)`;
+  }
+
+  if (!positives.length && negatives.length) {
+    return `📉 กิจกรรมโดยรวมลดลง (${negatives.length} รายการ)`;
+  }
+
+  return `ℹ️ กิจกรรมมีทั้งเพิ่มและลด (↑${positives.length} ↓${negatives.length})`;
+}
+    
     
  function renderBarChart(data, max) {
    return `
@@ -1098,6 +1127,20 @@ audits.sort((a, b) => b.at - a.at);
 
 <h3>Top Actions (Last ${range} days)</h3>
  ${trendSnapshot ? `
+     <div class="insight-summary muted">
+       ${buildInsightSummary(
+         buildDiffMatrix(
+           range === 7
+             ? trendSnapshot.last7.byAction
+             : trendSnapshot.last30.byAction,
+           range === 7
+             ? trendNow.last7.byAction
+             : trendNow.last30.byAction
+         )
+       )}
+     </div>
+    ` : ""}
+     
   <h4>Δ by Action (Snapshot → Current)</h4>
 
  <label class="delta-toggle">
