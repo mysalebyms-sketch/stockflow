@@ -930,9 +930,9 @@ function renderDiffMatrix(rows) {
     return "<p class='muted'>— ไม่มีรายการเปลี่ยนแปลง —</p>";
   }
 
- const sorted = [...filtered].sort(
-  (a, b) => scoreDelta(b) - scoreDelta(a)
-);
+const sorted = [...filtered].sort(function (a, b) {
+  return scoreDelta(b) - scoreDelta(a);
+});
 
   return `
     <table class="diff-matrix">
@@ -2271,8 +2271,6 @@ function toggleBatchShippedOnly(value) {
     /* ===============================
        APP BOOTSTRAP
     =============================== */
-// --- SAFETY: ensure render is globally defined (no-op override safe)
-function render() {}
     
 function boot() {
    loadOrders();
