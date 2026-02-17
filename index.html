@@ -1212,7 +1212,8 @@ const score =
 <div
     class="audit-item"
     data-action="${a.action}"
-    onclick="openOrderFromAudit('${a.orderId}')"
+    data-at="${a.at}"
+    onclick="openOrderFromAudit('${a.orderId}', event)"
  >
                 <span>Order: ${a.orderId}</span>
                 <span>by ${a.by}</span>
@@ -1538,15 +1539,15 @@ function openOrderDetail(orderId) {
   renderAdminOrderDetail();
 }
 
-function openOrderFromAudit(orderId) {
+function openOrderFromAudit(orderId, evt) {
 if (!orderId) return;
 
   // STEP 18.15 — preserve audit scroll
   state.audit.returnScrollTop = window.scrollY;
   state.selectedOrderId = orderId;
   state.audit.jumpTo = {
-    action: event?.currentTarget?.dataset?.action,
-    at: event?.currentTarget?.querySelector("span:last-child")?.textContent
+    action: evt?.currentTarget?.dataset?.action,
+    at: evt?.currentTarget?.dataset?.at
   }; // transient
   renderAdminOrderDetail();
 }    
@@ -1628,9 +1629,9 @@ function renderAdminOrderDetail() {
   `;
   // STEP 18.14 — auto-scroll + highlight audit record
   if (state.audit.jumpTo) {
-    const el = document.querySelector(
-      `.order-audit-log .audit-item[data-action="${state.audit.jumpTo.action}"]`
-    );
+   const el = document.querySelector(
+      `.order-audit-log .audit-item[data-action="${state.audit.jumpTo.action}"][data-at="${state.audit.jumpTo.at}"]`
+   );
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "center" });
       el.classList.add("alert-highlight--primary");
@@ -1936,11 +1937,6 @@ function logAudit(order, action) {
     order.audit = [];
   }
 
-const last = order.audit[order.audit.length - 1];
-  if (last && last.action === action) {
-    return; // prevent duplicate consecutive audit
-  }
-  
   order.audit.push({
     action,
     by: state.admin.user || "unknown",
