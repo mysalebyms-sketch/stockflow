@@ -464,7 +464,19 @@ function openAlertAnalytics() {
 function openAlertAudit(severity) {
   state.view.screen = "audit";
   state.audit.alertSeverity = severity; // transient
-  state.audit.alertTargetAction = null; // will resolve in render
+  
+ // STEP 18.7 — resolve target action from analytics
+ const audits = collectAllAudits();
+ const trendNow = buildAuditTrendComparison(audits);
+ const base =
+   state.analytics.rangeDays === 7
+     ? trendNow.last7.byAction
+     : trendNow.last30.byAction;
+ const rows = buildDiffMatrix({}, base);
+ const top = buildTopAlerts(rows)
+   .find(a => a.severity === severity);
+
+ state.audit.alertTargetAction = top ? top.key : null;
   render();
 }
     
@@ -1124,7 +1136,8 @@ const score =
 
  // STEP 18.6 — scroll & highlight alert target
  if (state.audit.alertSeverity) {
-   const firstAction = Object.keys(grouped)[0];
+   const firstAction =
+    state.audit.alertTargetAction || Object.keys(grouped)[0];
    if (firstAction) {
      const header = document.querySelector(
        `.audit-action[data-action="${firstAction}"]`
