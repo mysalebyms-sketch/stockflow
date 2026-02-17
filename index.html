@@ -1315,18 +1315,21 @@ const score =
    <span class="legend-item minus">− ลดลง</span>
  </div>
 
-${renderDiffMatrix(
-  (() => {
-    const rows = buildDiffMatrix(
-      range === 7 ? trendSnapshot.last7.byAction : trendSnapshot.last30.byAction,
-      range === 7 ? trendNow.last7.byAction : trendNow.last30.byAction
-    );
-    return alertOnly
-      ? rows.filter(r => detectAnomaly(r) && scoreDelta(r) >= 3)
-      : rows;
-    })()
-  )}
-` : ""}
+${
+   trendSnapshot
+     ? renderDiffMatrix(
+         (() => {
+           const rows = buildDiffMatrix(
+             range === 7 ? trendSnapshot.last7.byAction : trendSnapshot.last30.byAction,
+             range === 7 ? trendNow.last7.byAction : trendNow.last30.byAction
+           );
+           return alertOnly
+             ? rows.filter(r => detectAnomaly(r) && scoreDelta(r) >= 3)
+             : rows;
+         })()
+       )
+     : ""
+ }
 
  <p>
    Δ vs 30 days:
