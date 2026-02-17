@@ -348,7 +348,8 @@ const state = {
    analytics: {
    rangeDays: 7,
    selectedSnapshotIndex: 0,
-   hideZeroDelta: false
+   hideZeroDelta: false,
+   snapshotResetNotice: false // STEP 16F
    }
  };
    
@@ -970,6 +971,7 @@ audits.sort((a, b) => b.at - a.at);
   if (snapshots.length === 0) {
     if (state.analytics.selectedSnapshotIndex !== 0) {
       state.analytics.selectedSnapshotIndex = 0;
+      state.analytics.snapshotResetNotice = true;
       saveAnalyticsPrefs();
     }
   } else if (
@@ -977,6 +979,7 @@ audits.sort((a, b) => b.at - a.at);
     state.analytics.selectedSnapshotIndex >= snapshots.length
   ) {
     state.analytics.selectedSnapshotIndex = 0;
+    state.analytics.snapshotResetNotice = true;
     saveAnalyticsPrefs();
   }
 
@@ -1002,6 +1005,13 @@ audits.sort((a, b) => b.at - a.at);
   app.innerHTML = `
     <section class="admin-analytics">
       <h2>📈 Audit Insights</h2>
+
+     ${state.analytics.snapshotResetNotice ? `
+     <p class="muted">
+       ⚠️ Snapshot ที่เลือกไว้ไม่พบในระบบ
+       ระบบได้เปลี่ยนกลับไปใช้ Snapshot ล่าสุดโดยอัตโนมัติ
+     </p>
+     ` : ""}
 
       ${lastSnapshot ? `
         <div class="analytics-snapshot">
@@ -1109,6 +1119,9 @@ ${renderDiffMatrix(
       <button onclick="openAuditViewer()">← Back to Audit</button>
     </section>
   `;
+
+   // STEP 16F — clear one-time notice
+  state.analytics.snapshotResetNotice = false;
  }
     
 function renderAdminOrders() {
