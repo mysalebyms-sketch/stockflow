@@ -422,7 +422,8 @@ const state = {
    fromDate: "",
    toDate: "",
    lastDays: null,
-   alertTargetActions: [] // STEP 18.9 — transient (Top N)
+   alertTargetActions: [],
+   returnScrollTop: null   // STEP 18.15 — transient
    },
    analytics: {
    rangeDays: 7,
@@ -784,6 +785,21 @@ function openAuditViewer() {
   render();
 }
 
+function backToAudit() {
+  state.view.screen = "audit";
+  render();
+
+  if (typeof state.audit.returnScrollTop === "number") {
+    requestAnimationFrame(() => {
+      window.scrollTo({
+        top: state.audit.returnScrollTop,
+        behavior: "auto"
+      });
+      state.audit.returnScrollTop = null; // cleanup
+    });
+  }
+}
+    
 function setAuditFilter(action) {
   state.audit.filterAction = action;
   saveAuditFilter();
@@ -1524,6 +1540,9 @@ function openOrderDetail(orderId) {
 
 function openOrderFromAudit(orderId) {
 if (!orderId) return;
+
+  // STEP 18.15 — preserve audit scroll
+  state.audit.returnScrollTop = window.scrollY;
   state.selectedOrderId = orderId;
   state.audit.jumpTo = {
     action: event?.currentTarget?.dataset?.action,
@@ -1604,7 +1623,7 @@ function renderAdminOrderDetail() {
    <div class="policy-note">⚠️ ต้องจัดส่งแล้วจึงจะ Archive ได้</div>
  `}
 
-      <button onclick="renderAdminOrders()">← กลับรายการ</button>
+      <button onclick="backToAudit()">← กลับ Audit</button>
     </section>
   `;
   // STEP 18.14 — auto-scroll + highlight audit record
