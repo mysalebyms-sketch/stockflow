@@ -189,6 +189,22 @@
   outline: 2px solid var(--danger);
   background: rgba(220, 38, 38, 0.08);
 }
+
+/* STEP 18.10 — Visual Priority Highlight */
+.alert-highlight--primary {
+  outline: 3px solid var(--danger);
+  background: rgba(220, 38, 38, 0.12);
+}
+
+.alert-highlight--secondary {
+  outline: 2px dashed var(--danger);
+  background: rgba(220, 38, 38, 0.06);
+}
+
+.alert-highlight--tertiary {
+  outline: 1px dashed var(--gray-400);
+  background: rgba(220, 38, 38, 0.03);
+}    
     
 .insight-summary {
   margin: 8px 0 12px;
@@ -1152,11 +1168,18 @@ if (state.audit.alertSeverity && state.audit.alertTargetActions.length) {
        if (index === 0) {
          header.scrollIntoView({ behavior: "smooth", block: "start" });
        }
-       header.classList.add("alert-highlight");
+       const level =
+   index === 0
+     ? "alert-highlight--primary"
+     : index === 1
+     ? "alert-highlight--secondary"
+     : "alert-highlight--tertiary";
+
+ header.classList.add(level);
 
        document
          .querySelectorAll(`.audit-item[data-action="${action}"]`)
-         .forEach(el => el.classList.add("alert-highlight"));
+         .forEach(el => el.classList.add(level));
      }
    });
  }
