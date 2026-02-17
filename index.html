@@ -2271,6 +2271,9 @@ function toggleBatchShippedOnly(value) {
     /* ===============================
        APP BOOTSTRAP
     =============================== */
+// --- SAFETY: ensure render is globally defined (no-op override safe)
+function render() {}
+    
 function boot() {
    loadOrders();
    loadAuditFilter();
