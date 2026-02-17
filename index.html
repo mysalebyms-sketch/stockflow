@@ -160,6 +160,31 @@
    display: inline-block;
  }
 
+/* STEP 18.4 — Alert Severity Badge */
+.alert-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 6px;
+  border-radius: var(--r-sm);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.alert-critical {
+  background: var(--danger);
+  color: var(--white);
+}
+
+.alert-warning {
+  background: var(--warning);
+  color: var(--gray-900);
+}
+
+.alert-info {
+  background: var(--gray-200);
+  color: var(--gray-900);
+}
+
 .insight-summary {
   margin: 8px 0 12px;
   font-size: 13px;
@@ -378,7 +403,7 @@ function renderHeader() {
    const header = document.getElementById("app-header");
 
 // STEP 18.2 — compute alert count (lightweight)
-   let alertCount = 0;
+   let alertStats = { critical: 0, warning: 0, info: 0 };
    if (state.admin.loggedIn) {
      const audits = collectAllAudits();
      const trendNow = buildAuditTrendComparison(audits);
@@ -386,7 +411,9 @@ function renderHeader() {
        ? trendNow.last7.byAction
        : trendNow.last30.byAction;
      const rows = buildDiffMatrix({}, base);
-     alertCount = buildTopAlerts(rows).length;
+     buildTopAlerts(rows).forEach(a => {
+     alertStats[a.severity]++;
+   });
    }  
 
    header.innerHTML = `
@@ -394,21 +421,30 @@ function renderHeader() {
      <div class="actions">
        ${
          state.admin.loggedIn
-           ? `<span>${state.admin.user}</span> ${renderAlertBadge(alertCount)}`
+           ? `<span>${state.admin.user}</span> ${renderAlertBadge(alertStats)}`
            : `<button onclick="openLogin()">🔒 ล็อกอิน</button>`
        }
      </div>
    `;
  }
 
-function renderAlertBadge(count) {
-  if (!count) return "";
+function renderAlertBadge(stats) {
+  if (!stats) return "";
+
   return `
-    <span class="alert-badge"
-      onclick="openAlertAnalytics()"
-      title="ดูรายการแจ้งเตือน">
-      ⚠️ ${count}
-    </span>`;
+    ${stats.critical ? `
+      <span class="alert-badge alert-critical"
+        onclick="openAlertAnalytics()"
+        title="Critical alerts">
+        ⛔ ${stats.critical}
+      </span>` : ""}
+    ${stats.warning ? `
+      <span class="alert-badge alert-warning"
+        onclick="openAlertAnalytics()"
+        title="Warning alerts">
+        ⚠️ ${stats.warning}
+      </span>` : ""}
+  `;
 }
 
 // STEP 18.3 — Open Analytics from Alert Badge
