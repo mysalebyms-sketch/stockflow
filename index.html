@@ -434,13 +434,13 @@ function renderAlertBadge(stats) {
   return `
     ${stats.critical ? `
       <span class="alert-badge alert-critical"
-        onclick="openAlertAnalytics()"
+        onclick="openAlertAudit('critical')"
         title="Critical alerts">
         ⛔ ${stats.critical}
       </span>` : ""}
     ${stats.warning ? `
       <span class="alert-badge alert-warning"
-        onclick="openAlertAnalytics()"
+        onclick="openAlertAudit('warning')"
         title="Warning alerts">
         ⚠️ ${stats.warning}
       </span>` : ""}
@@ -451,6 +451,13 @@ function renderAlertBadge(stats) {
 function openAlertAnalytics() {
   state.view.screen = "analytics";
   state.analytics.alertOnly = true; // transient flag
+  render();
+}
+
+// STEP 18.5 — Open Audit from Alert Badge
+function openAlertAudit(severity) {
+  state.view.screen = "audit";
+  state.audit.alertSeverity = severity; // transient
   render();
 }
     
@@ -1011,6 +1018,15 @@ if (state.audit.toDate) {
 }
 
 audits.sort((a, b) => b.at - a.at);  
+
+  // STEP 18.5 — filter by alert severity (transient)
+  if (state.audit.alertSeverity) {
+    audits = audits.filter(a => {
+const score =
+     state.audit.alertSeverity === "critical" ? 3 : 2;
+    return getAlertSeverity(score) === state.audit.alertSeverity;
+    });
+  }
   
   const grouped = audits.reduce((acc, a) => {
     (acc[a.action] ||= []).push(a);
@@ -1092,6 +1108,9 @@ audits.sort((a, b) => b.at - a.at);
       <button onclick="renderAdminOrders()">← กลับ Admin</button>
     </section>
   `;
+
+    state.audit.alertSeverity = null;
+
 }   
 
  function renderAdminAnalytics() {
