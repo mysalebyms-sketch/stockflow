@@ -1056,7 +1056,8 @@ const score =
   }
   
   const grouped = audits.reduce((acc, a) => {
-    (acc[a.action] ||= []).push(a);
+    if (!acc[a.action]) acc[a.action] = [];
+      acc[a.action].push(a);
     return acc;
   }, {});
 
