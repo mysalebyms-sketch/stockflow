@@ -445,6 +445,7 @@ const state = {
    fromDate: "",
    toDate: "",
    lastDays: null,
+   alertSeverity: null, // STEP 18.21 — transient only (must not persist)
    alertTargetActions: [],
    returnScrollTop: null,
    collapsedActions: {} // STEP 18.18 — per action
@@ -811,11 +812,17 @@ function viewOrder() {
 }
 
 function openAuditViewer() {
+  // STEP 18.21 — clear transient alert context when opening audit normally
+  state.audit.alertSeverity = null;
+  state.audit.alertTargetActions = [];
   state.view.screen = "audit";
   render();
 }
 
 function backToAudit() {
+  // STEP 18.21 — clear transient alert context when returning to audit
+  state.audit.alertSeverity = null;
+  state.audit.alertTargetActions = [];
   state.view.screen = "audit";
   render();
 
@@ -1309,6 +1316,7 @@ if (state.audit.alertSeverity && state.audit.alertTargetActions.length) {
  }
   
     state.audit.alertTargetActions = [];
+    state.audit.alertSeverity = null;
 
  }   
 
