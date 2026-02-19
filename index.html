@@ -448,7 +448,12 @@ const state = {
    alertSeverity: null, // STEP 18.21 — transient only (must not persist)
    alertTargetActions: [],
    returnScrollTop: null,
-   collapsedActions: {} // STEP 18.18 — per action
+   collapsedActions: {}, // STEP 18.18 — per action
+
+    // STEP 18.22 — one-shot alert mode (transient)
+    _fromAlert: false,
+    _prevCollapsedActions: null,
+    _restoreToken: 0
    },
    analytics: {
    rangeDays: 7,
@@ -529,6 +534,11 @@ function openAlertAnalytics() {
 function openAlertAudit(severity) {
   state.view.screen = "audit";
   state.audit.alertSeverity = severity; // transient
+
+  // STEP 18.22 — mark one-shot alert navigation + snapshot collapsedActions
+  state.audit._fromAlert = true;
+  state.audit._prevCollapsedActions = { ...(state.audit.collapsedActions || {}) };
+  state.audit._restoreToken++; // start a new restore session id
   
  // STEP 18.7 — resolve target action from analytics
  const audits = collectAllAudits();
@@ -579,6 +589,11 @@ function jumpToAuditRecord(el) {
 }
 
 function toggleAuditGroup(action) {
+  if (state.audit._fromAlert) {
+    state.audit._fromAlert = false;
+    state.audit._prevCollapsedActions = null;
+    state.audit._restoreToken++; // cancel any queued restore
+  }
   state.audit.collapsedActions[action] =
     !state.audit.collapsedActions[action];
   render();
@@ -815,6 +830,10 @@ function openAuditViewer() {
   // STEP 18.21 — clear transient alert context when opening audit normally
   state.audit.alertSeverity = null;
   state.audit.alertTargetActions = [];
+  // STEP 18.22 — ensure one-shot alert flags are cleared
+  state.audit._fromAlert = false;
+  state.audit._prevCollapsedActions = null;
+  state.audit._restoreToken++;
   state.view.screen = "audit";
   render();
 }
@@ -823,6 +842,10 @@ function backToAudit() {
   // STEP 18.21 — clear transient alert context when returning to audit
   state.audit.alertSeverity = null;
   state.audit.alertTargetActions = [];
+  // STEP 18.22 — ensure one-shot alert flags are cleared
+  state.audit._fromAlert = false;
+  state.audit._prevCollapsedActions = null;
+  state.audit._restoreToken++;
   state.view.screen = "audit";
   render();
 
@@ -1174,7 +1197,7 @@ audits.sort((a, b) => b.at - a.at);
  }
 
  // STEP 18.19 — auto-expand alert target groups
-  if (state.audit.alertTargetActions?.length) {
+  if (state.audit._fromAlert && state.audit.alertTargetActions?.length) {
     state.audit.alertTargetActions.forEach(action => {
       state.audit.collapsedActions[action] = false;
     });
@@ -1315,8 +1338,25 @@ if (state.audit.alertSeverity && state.audit.alertTargetActions.length) {
    });
  }
   
-    state.audit.alertTargetActions = [];
-    state.audit.alertSeverity = null;
+// STEP 18.22 — normalize alert mode: restore collapsedActions after one-shot (defer + token)
+if (state.audit._fromAlert) {
+  const prev = state.audit._prevCollapsedActions;
+  state.audit._fromAlert = false;
+  state.audit._prevCollapsedActions = null;
+  const token = state.audit._restoreToken; // use session id created in openAlertAudit
+  setTimeout(() => {
+    // ignore stale restore
+    if (token !== state.audit._restoreToken) return;
+    if (prev && typeof prev === "object") {
+      state.audit.collapsedActions = prev;
+      // refresh UI only if still in audit
+      if (state.view.screen === "audit") render();
+    }
+  }, 1500);
+}
+
+  state.audit.alertTargetActions = [];
+  state.audit.alertSeverity = null;
 
  }   
 
