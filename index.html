@@ -1138,6 +1138,13 @@ audits.sort((a, b) => b.at - a.at);
      state.audit.alertTargetActions.includes(a.action)
    );
  }
+
+ // STEP 18.19 — auto-expand alert target groups
+  if (state.audit.alertTargetActions?.length) {
+    state.audit.alertTargetActions.forEach(action => {
+      state.audit.collapsedActions[action] = false;
+    });
+  }
   
   const grouped = audits.reduce((acc, a) => {
     if (!acc[a.action]) acc[a.action] = [];
