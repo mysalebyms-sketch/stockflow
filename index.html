@@ -320,17 +320,29 @@ function saveOrders() {
       if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed === "object") {
-        Object.assign(state.audit, parsed);
+        // STEP 18.20 — persist policy: load only filter fields (collapsedActions is transient)
+        if (typeof parsed.filterAction === "string") state.audit.filterAction = parsed.filterAction;
+        if (typeof parsed.search === "string") state.audit.search = parsed.search.toLowerCase();
+        if (typeof parsed.fromDate === "string") state.audit.fromDate = parsed.fromDate;
+        if (typeof parsed.toDate === "string") state.audit.toDate = parsed.toDate;
+        if (parsed.lastDays === null || typeof parsed.lastDays === "number") state.audit.lastDays = parsed.lastDays;
       }
     }
    } catch {}
  }
 
  function saveAuditFilter() {
-   localStorage.setItem(
-     AUDIT_FILTER_KEY,
-     JSON.stringify(state.audit)
-   );
+  // STEP 18.20 — persist policy: save only filter fields (collapsedActions is transient)
+  localStorage.setItem(
+    AUDIT_FILTER_KEY,
+    JSON.stringify({
+      filterAction: state.audit.filterAction,
+      search: state.audit.search,
+      fromDate: state.audit.fromDate,
+      toDate: state.audit.toDate,
+      lastDays: state.audit.lastDays
+    })
+  );
  }    
 
  function loadAuditPresets() {
@@ -818,12 +830,14 @@ function backToAudit() {
     
 function setAuditFilter(action) {
   state.audit.filterAction = action;
+  state.audit.lastDays = null; // STEP 18.20 — prevent hidden time constraint
   saveAuditFilter();
   render();
 }
 
 function setAuditSearch(value) {
   state.audit.search = value.toLowerCase();
+  state.audit.lastDays = null; // STEP 18.20 — prevent hidden time constraint
   saveAuditFilter();
   render();
 }
@@ -831,6 +845,7 @@ function setAuditSearch(value) {
 function setAuditDateRange(from, to) {
   state.audit.fromDate = from;
   state.audit.toDate = to;
+  state.audit.lastDays = null;
   saveAuditFilter();
   render();
 }
@@ -855,7 +870,17 @@ function setAnalyticsSnapshot(index) {
  }
     
  function applyAuditPreset(preset) {
-   Object.assign(state.audit, preset.filters);
+   // STEP 18.20 — persist policy: apply only filter fields (collapse/transient ignored)
+   const f = preset?.filters || {};
+   if (typeof f.filterAction === "string") state.audit.filterAction = f.filterAction;
+   if (typeof f.search === "string") state.audit.search = f.search.toLowerCase();
+   if (typeof f.fromDate === "string") state.audit.fromDate = f.fromDate;
+   if (typeof f.toDate === "string") state.audit.toDate = f.toDate;
+   if ("lastDays" in f) {
+     if (f.lastDays === null || typeof f.lastDays === "number") state.audit.lastDays = f.lastDays;
+   } else {
+     state.audit.lastDays = null; // STEP 18.20 — prevent hidden time constraint when preset doesn't define it
+   }
    saveAuditFilter();
    render();
  }
