@@ -322,7 +322,7 @@ function saveOrders() {
       if (parsed && typeof parsed === "object") {
         // STEP 18.20 — persist policy: load only filter fields (collapsedActions is transient)
         if (typeof parsed.filterAction === "string") state.audit.filterAction = parsed.filterAction;
-        if (typeof parsed.search === "string") state.audit.search = parsed.search.toLowerCase();
+        if (typeof parsed.search === "string") state.audit.search = parsed.search.trim().toLowerCase();
         if (typeof parsed.fromDate === "string") state.audit.fromDate = parsed.fromDate;
         if (typeof parsed.toDate === "string") state.audit.toDate = parsed.toDate;
         if (parsed.lastDays === null || typeof parsed.lastDays === "number") state.audit.lastDays = parsed.lastDays;
@@ -333,16 +333,18 @@ function saveOrders() {
 
  function saveAuditFilter() {
   // STEP 18.20 — persist policy: save only filter fields (collapsedActions is transient)
-  localStorage.setItem(
-    AUDIT_FILTER_KEY,
-    JSON.stringify({
-      filterAction: state.audit.filterAction,
-      search: state.audit.search,
-      fromDate: state.audit.fromDate,
-      toDate: state.audit.toDate,
-      lastDays: state.audit.lastDays
-    })
-  );
+try {
+    localStorage.setItem(
+      AUDIT_FILTER_KEY,
+      JSON.stringify({
+        filterAction: state.audit.filterAction,
+        search: (state.audit.search || "").trim().toLowerCase(),
+        fromDate: state.audit.fromDate,
+        toDate: state.audit.toDate,
+        lastDays: state.audit.lastDays
+      })
+    );
+  } catch {}
  }    
 
  function loadAuditPresets() {
@@ -873,7 +875,7 @@ function setAnalyticsSnapshot(index) {
    // STEP 18.20 — persist policy: apply only filter fields (collapse/transient ignored)
    const f = preset?.filters || {};
    if (typeof f.filterAction === "string") state.audit.filterAction = f.filterAction;
-   if (typeof f.search === "string") state.audit.search = f.search.toLowerCase();
+   if (typeof f.search === "string") state.audit.search = f.search.trim().toLowerCase();
    if (typeof f.fromDate === "string") state.audit.fromDate = f.fromDate;
    if (typeof f.toDate === "string") state.audit.toDate = f.toDate;
    if ("lastDays" in f) {
