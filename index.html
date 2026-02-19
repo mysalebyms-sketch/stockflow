@@ -286,7 +286,80 @@ const STORAGE_KEY = "stockviewer.orders";
 const AUDIT_FILTER_KEY = "stockviewer.audit.filters";    
 const AUDIT_PRESET_KEY = "stockviewer.audit.presets";   
 const ANALYTICS_SNAPSHOT_KEY = "stockviewer.analytics.snapshots";  
-const ANALYTICS_PREF_KEY = "stockviewer.analytics.prefs";    
+const ANALYTICS_PREF_KEY = "stockviewer.analytics.prefs";  
+const AUDIT_COLLAPSE_KEY = "stockviewer.audit.collapsedActions"; // STEP 18.23
+
+// STEP 18.23 — Persist collapsedActions (safe + bounded)
+const AUDIT_COLLAPSE_TTL_DAYS = 7;
+const AUDIT_COLLAPSE_MAX_KEYS = 50;
+
+function loadAuditCollapsedActions() {
+  try {
+    
+    const reset = (purge = false) => {
+      if (purge) localStorage.removeItem(AUDIT_COLLAPSE_KEY);
+      state.audit.collapsedActions = {};
+    };
+    const raw = localStorage.getItem(AUDIT_COLLAPSE_KEY);
+    if (!raw) {
+      // storage empty => force default {}
+      state.audit.collapsedActions = {};
+      return;
+    }
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") {
+      return reset(true);
+    }
+
+    const savedAt = Number(parsed.savedAt);
+    if (!Number.isFinite(savedAt)) {
+      return reset(true);
+    }
+    const ageMs = Date.now() - savedAt;
+    const ttlMs = AUDIT_COLLAPSE_TTL_DAYS * 24 * 60 * 60 * 1000;
+    // guard: clock skew (savedAt in future) => treat as invalid
+    if (ageMs < 0) {
+      return reset(true);
+    }
+    if (ageMs > ttlMs) {
+      return reset(true);
+    }
+
+    const map = parsed.map;
+    if (!map || typeof map !== "object") {
+      return reset(true);
+    }
+
+    // sanitize + cap
+    const entries = Object.entries(map)
+      .filter(([k, v]) => typeof k === "string" && typeof v === "boolean")
+      .slice(0, AUDIT_COLLAPSE_MAX_KEYS);
+
+    state.audit.collapsedActions = Object.fromEntries(entries);
+    
+  } catch {}
+}
+
+function saveAuditCollapsedActions() {
+  try {
+    
+    // STEP 18.23 — persist policy:
+    // - called only from user-driven toggle (toggleAuditGroup)
+    // - MUST NOT be called from alert auto-expand / restore flows
+    const map = state.audit.collapsedActions || {};
+    const entries = Object.entries(map)
+      .filter(([k, v]) => typeof k === "string" && typeof v === "boolean")
+      .slice(0, AUDIT_COLLAPSE_MAX_KEYS);
+
+    localStorage.setItem(
+      AUDIT_COLLAPSE_KEY,
+      JSON.stringify({
+        savedAt: Date.now(),
+        map: Object.fromEntries(entries)
+      })
+    );
+  } catch {}
+}    
 
 function loadOrders() {
   try {
@@ -589,13 +662,16 @@ function jumpToAuditRecord(el) {
 }
 
 function toggleAuditGroup(action) {
-  if (state.audit._fromAlert) {
+if (!action || typeof action !== "string") return;
+if (state.audit._fromAlert) {
     state.audit._fromAlert = false;
     state.audit._prevCollapsedActions = null;
     state.audit._restoreToken++; // cancel any queued restore
   }
   state.audit.collapsedActions[action] =
     !state.audit.collapsedActions[action];
+  // STEP 18.23 — persist only on user-driven toggle (this function)
+  saveAuditCollapsedActions();
   render();
 }
     
@@ -1288,11 +1364,14 @@ audits.sort((a, b) => b.at - a.at);
 
       ${Object.keys(grouped).length === 0
         ? "<p>— ไม่มี Audit —</p>"
-        : Object.entries(grouped).map(([action, list]) => `
+      : Object.entries(grouped).map(([action, list]) => `
 <h3
    class="audit-action"
    data-action="${action}"
-   onclick="toggleAuditGroup('${action}')"
+   onclick="toggleAuditGroup('${String(action)
+     .replace(/\\/g, '\\\\')
+     .replace(/'/g, "\\'")
+   }')"
  >
    <span class="audit-toggle">
      ${state.audit.collapsedActions[action] ? "▸" : "▾"}
@@ -1354,8 +1433,12 @@ if (state.audit._fromAlert && state.audit._prevCollapsedActions) {
   setTimeout(() => {
     // ignore stale restore
     if (token !== state.audit._restoreToken) return;
-    if (prev && typeof prev === "object") {
-      state.audit.collapsedActions = prev;
+   if (prev && typeof prev === "object") {
+      // STEP 18.23 — sanitize restore payload (boolean map only)
+      const entries = Object.entries(prev)
+        .filter(([k, v]) => typeof k === "string" && typeof v === "boolean")
+        .slice(0, AUDIT_COLLAPSE_MAX_KEYS);
+      state.audit.collapsedActions = Object.fromEntries(entries);
       // refresh UI only if still in audit
       if (state.view.screen === "audit") {
         const y = window.scrollY;
@@ -2515,6 +2598,7 @@ function toggleBatchShippedOnly(value) {
 function boot() {
    loadOrders();
    loadAuditFilter();
+   loadAuditCollapsedActions();
    loadAnalyticsPrefs();
    renderHeader();
    render();
