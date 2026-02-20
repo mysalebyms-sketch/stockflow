@@ -2061,6 +2061,27 @@ function requireAdmin() {
   }
   return true;
 }
+
+// STEP 18.25 — Consume pendingScreen after Login (Auto-Return UX)
+function consumePendingScreenAfterLogin() {
+  const target = state?.ui?.pendingScreen;
+  if (!target) return;
+
+  // allow only admin destinations
+  const allowed = ["admin", "audit", "analytics"];
+  if (!allowed.includes(target)) {
+    state.ui.pendingScreen = null;
+    return;
+  }
+
+  // consume + navigate
+  state.ui.pendingScreen = null;
+  state.view.screen = target;
+
+  // ensure persistence updates to the new screen
+  state.ui._lastPersistedScreen = null; // force render() to consider save
+  saveLastScreen();
+}    
     
 function goToList() {
    state.view.screen = "list";
@@ -2085,6 +2106,20 @@ function openProduct(productId) {
 function openLogin() {
    openSheet("login-sheet");
  }
+
+// STEP 18.25 — Basic Login Success Handler
+function handleLoginSuccess(user) {
+  state.admin.loggedIn = true;
+  state.admin.user = user || "admin";
+
+  closeSheet("login-sheet");
+
+  // Auto-return if there is pending screen
+  consumePendingScreenAfterLogin();
+
+  renderHeader();
+  render();
+}    
 
 function increaseQty() {
   state.view.qty++;
