@@ -2063,6 +2063,9 @@ function exportOrderPNG(orderId) {
 function requireAdmin() {
   if (!state.admin.loggedIn) {
     console.warn("Admin permission required");
+    // STEP 18.26 — align UX with screen-guard: prompt login on protected actions too
+    // NOTE: do NOT set pendingScreen here (this is an action guard, not screen navigation)
+    openLogin();
     return false;
   }
   return true;
@@ -2112,7 +2115,11 @@ function openProduct(productId) {
 function openLogin() {
   // STEP 18.26 — ensure login sheet is wired before showing
   renderLoginSheet();
-  openSheet("login-sheet");
+  // guard: avoid overlayCount drifting if login sheet is already open
+  const el = document.getElementById("login-sheet");
+  if (!el?.classList.contains("show")) {
+    openSheet("login-sheet");
+  }
   // focus first input for better UX
   requestAnimationFrame(() => {
     document.getElementById("login-user")?.focus();
@@ -2150,7 +2157,7 @@ function renderLoginSheet() {
 
         <div style="display:flex;gap:8px;margin-top:12px;">
           <button class="btn-primary" type="submit">เข้าสู่ระบบ</button>
-          <button class="btn-secondary" type="button" onclick="closeSheet('login-sheet')">ยกเลิก</button>
+          <button class="btn-secondary" type="button" onclick="cancelLogin()">ยกเลิก</button>
         </div>
         <div class="muted" style="margin-top:10px;">
           * โหมดตัวอย่าง: ใช้ชื่ออะไรก็ได้เพื่อเข้าระบบ (demo)
@@ -2160,6 +2167,13 @@ function renderLoginSheet() {
   `;
 }
 
+// STEP 18.26 — Cancel login safely (avoid pendingScreen stuck)
+function cancelLogin() {
+  // user explicitly cancels auth → clear pending destination
+  state.ui.pendingScreen = null;
+  closeSheet("login-sheet");
+}
+    
 // STEP 18.26 — Login submit handler
 function submitLogin(evt) {
   evt?.preventDefault?.();
