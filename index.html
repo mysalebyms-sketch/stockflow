@@ -288,10 +288,60 @@ const AUDIT_PRESET_KEY = "stockviewer.audit.presets";
 const ANALYTICS_SNAPSHOT_KEY = "stockviewer.analytics.snapshots";  
 const ANALYTICS_PREF_KEY = "stockviewer.analytics.prefs";  
 const AUDIT_COLLAPSE_KEY = "stockviewer.audit.collapsedActions"; // STEP 18.23
+const LAST_SCREEN_KEY = "stockviewer.ui.lastScreen"; // STEP 18.24
 
 // STEP 18.23 — Persist collapsedActions (safe + bounded)
 const AUDIT_COLLAPSE_TTL_DAYS = 7;
 const AUDIT_COLLAPSE_MAX_KEYS = 50;
+const LAST_SCREEN_TTL_DAYS = 7; // STEP 18.24    
+
+// STEP 18.24 — Persist last open screen (safe + bounded)
+// Policy:
+// - Restore immediately only for non-admin screens (list/cart)
+// - Admin screens stored as pending (requires login persistence to auto-restore later)
+function loadLastScreen() {
+  try {
+    const raw = localStorage.getItem(LAST_SCREEN_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return;
+
+    const savedAt = Number(parsed.savedAt);
+    if (!Number.isFinite(savedAt)) return;
+    const ageMs = Date.now() - savedAt;
+    const ttlMs = LAST_SCREEN_TTL_DAYS * 24 * 60 * 60 * 1000;
+    if (ageMs < 0 || ageMs > ttlMs) return;
+
+    const screen = String(parsed.screen || "");
+    const allowed = ["list", "cart", "admin", "audit", "analytics"];
+    if (!allowed.includes(screen)) return;
+
+    // restore non-admin screens immediately
+    if (screen === "list" || screen === "cart") {
+      state.view.screen = screen;
+      return;
+    }
+
+    // admin screens require auth; keep as pending only
+    state.ui.pendingScreen = screen;
+    state.ui._skipPersistOnce = true; // STEP 18.24 — don't overwrite stored screen on first render
+  } catch {}
+}
+
+function saveLastScreen() {
+  try {
+    const screen = String(state.view.screen || "list");
+    const allowed = ["list", "cart", "admin", "audit", "analytics"];
+    if (!allowed.includes(screen)) return;
+    localStorage.setItem(
+      LAST_SCREEN_KEY,
+      JSON.stringify({
+        savedAt: Date.now(),
+        screen
+      })
+    );
+  } catch {}
+}    
 
 function loadAuditCollapsedActions() {
   try {
@@ -510,7 +560,10 @@ const state = {
    ui: {
      loading: false,
      overlayCount: 0,
-     error: null
+     error: null,
+     pendingScreen: null,          // STEP 18.24 — stored admin destination after login
+     _lastPersistedScreen: null,   // STEP 18.24 — internal guard (avoid noisy writes)
+     _skipPersistOnce: false       // STEP 18.24 — prevent boot overwrite when pendingScreen exists
      },
    audit: {
    filterAction: "all",
@@ -682,6 +735,21 @@ if (state.audit._fromAlert) {
        SCREEN RENDERERS
     =============================== */
 function render() {
+  // STEP 18.24 — persist last screen only when changed
+  // Policy: if there is pending admin screen and user not logged in yet, don't overwrite storage.
+  if (state.ui._skipPersistOnce) {
+    state.ui._skipPersistOnce = false;
+    state.ui._lastPersistedScreen = state.view.screen;
+  } else if (state.ui._lastPersistedScreen !== state.view.screen) {
+    state.ui._lastPersistedScreen = state.view.screen;
+    // Only block overwrite when we're on "list" due to unauth guard while pendingScreen exists.
+    const shouldBlock =
+      state.ui.pendingScreen &&
+      !state.admin.loggedIn &&
+      state.view.screen === "list";
+    if (!shouldBlock) saveLastScreen();
+   }
+
    switch (state.view.screen) {
 
      case "audit":
@@ -2600,6 +2668,7 @@ function boot() {
    loadAuditFilter();
    loadAuditCollapsedActions();
    loadAnalyticsPrefs();
+   loadLastScreen(); // STEP 18.24
    renderHeader();
    render();
  }
