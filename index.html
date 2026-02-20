@@ -563,6 +563,7 @@ const state = {
      error: null,
      pendingScreen: null,          // STEP 18.24 — stored admin destination after login
      pendingAction: null,          // STEP 18.27 — one-shot action to resume after login (in-memory)
+     pendingActionId: null,        // STEP 18.28 — one-shot token to prevent double-run
      _lastPersistedScreen: null,   // STEP 18.24 — internal guard (avoid noisy writes)
      _skipPersistOnce: false       // STEP 18.24 — prevent boot overwrite when pendingScreen exists
      },
@@ -2067,14 +2068,21 @@ function requireAdmin(pendingAction) {
      // STEP 18.26 — align UX with screen-guard: prompt login on protected actions too
      // NOTE: do NOT set pendingScreen here (this is an action guard, not screen navigation)
     if (pendingAction && typeof pendingAction === "object") {
-      // store one-shot action (in-memory only)
-      // clone minimal payload to avoid accidental mutation (esp. arrays)
+      // STEP 18.28 — store one-shot action safely (in-memory only)
+      // - attach id for double-run guard
+      // - clone minimal payload to avoid mutation
+      const id = String(pendingAction.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+      state.ui.pendingActionId = id;
       if (Array.isArray(pendingAction.orderIds)) {
-        state.ui.pendingAction = { ...pendingAction, orderIds: [...pendingAction.orderIds] };
+        state.ui.pendingAction = {
+          ...pendingAction,
+          id,
+          orderIds: pendingAction.orderIds.slice(0, 10).map(String)
+        };
       } else {
-        state.ui.pendingAction = { ...pendingAction };
+        state.ui.pendingAction = { ...pendingAction, id };
       }
-    }
+   }
     openLogin();
     return false;
   }
@@ -2107,47 +2115,101 @@ function consumePendingActionAfterLogin() {
   const a = state?.ui?.pendingAction;
   if (!a) return false;
 
+  // STEP 18.28 — double-run guard (id-based)
+  const id = String(a.id || "");
+  if (id && state.ui.pendingActionId && id !== state.ui.pendingActionId) {
+    // stale / overwritten action
+    state.ui.pendingAction = null;
+    state.ui.pendingActionId = null;
+    return false;
+  }
+
   // consume first (prevent loops)
   state.ui.pendingAction = null;
+  state.ui.pendingActionId = null;
+
+  // STEP 18.28 — validate + sanitize payload
+  const type = String(a.type || "");
+  const orderId = typeof a.orderId === "string" ? a.orderId : (a.orderId != null ? String(a.orderId) : "");
+  const format = String(a.format || "json").toLowerCase();
+  const orderIds = Array.isArray(a.orderIds)
+    ? a.orderIds.map(String).filter(Boolean).slice(0, 10)
+    : [];
+
+  const allowedTypes = new Set([
+    "export_order_png",
+    "export_order_pdf",
+    "print_order",
+    "export_audit",
+    "export_analytics_png",
+    "export_analytics_json",
+    "export_orders_pdf_batch",
+    "archive_order",
+    "restore_order",
+    "mark_paid",
+    "mark_shipped"
+  ]);
+  if (!allowedTypes.has(type)) return false;
 
   try {
-    switch (a.type) {
+    // STEP 18.28 — defer execution to avoid immediate confirm right after login
+    const run = () => {
+      switch (type) {
       case "export_order_png":
-        exportOrderPNG(a.orderId);
+        if (!orderId) return false;
+        exportOrderPNG(orderId);
         return true;
       case "export_order_pdf":
-        exportOrderPDF(a.orderId);
+        if (!orderId) return false;
+        exportOrderPDF(orderId);
         return true;
       case "print_order":
-        printOrder(a.orderId);
+        if (!orderId) return false;
+        printOrder(orderId);
         return true;
       case "export_audit":
-        exportAuditLog(a.format || "json");
+        if (format !== "json" && format !== "csv") return false;
+        exportAuditLog(format);
         return true;
       case "export_analytics_png":
-        exportAnalyticsPNG();
+        // Ensure the analytics screen DOM exists before exporting
+        if (state.view.screen !== "analytics") {
+          state.view.screen = "analytics";
+          render();
+        }
+        // Let layout settle one frame
+        requestAnimationFrame(() => exportAnalyticsPNG());
         return true;
       case "export_analytics_json":
         exportAnalyticsJSON();
         return true;
       case "export_orders_pdf_batch":
-        exportOrdersPDFBatch(Array.isArray(a.orderIds) ? a.orderIds : []);
+        exportOrdersPDFBatch(orderIds);
         return true;
       case "archive_order":
-        archiveOrder(a.orderId);
+        if (!orderId) return false;
+        archiveOrder(orderId);
         return true;
       case "restore_order":
-        restoreOrder(a.orderId);
+        if (!orderId) return false;
+        restoreOrder(orderId);
         return true;
       case "mark_paid":
-        markOrderPaid(a.orderId);
+        if (!orderId) return false;
+        markOrderPaid(orderId);
         return true;
       case "mark_shipped":
-        markOrderShipped(a.orderId);
+        if (!orderId) return false;
+        markOrderShipped(orderId);
         return true;
       default:
         return false;
-    }
+     }
+    };
+
+    // defer to let sheet close + layout settle
+    setTimeout(run, 80);
+    return true;
   } catch (e) {
     console.warn("Failed to resume pending action", e);
     return false;
@@ -2196,10 +2258,19 @@ function handleLoginSuccess(user) {
   closeSheet("login-sheet");
 
   // STEP 18.27 — resume pending action first (one-shot)
-  consumePendingActionAfterLogin();
+  const didResumeAction = consumePendingActionAfterLogin();
 
-  // Auto-return if there is pending screen
-  consumePendingScreenAfterLogin();
+  // STEP 18.28 — ensure pendingScreen happens after (and not before) action scheduling
+  // If an action was resumed, we still allow pendingScreen to restore, but defer it after action tick.
+  if (state.ui.pendingScreen) {
+    setTimeout(() => {
+      // only restore if still logged in and screen still pending
+      if (!state.admin.loggedIn) return;
+      consumePendingScreenAfterLogin();
+      renderHeader();
+      render();
+    }, didResumeAction ? 1 : 0);
+  }
 
   renderHeader();
   render();
@@ -2237,6 +2308,7 @@ function cancelLogin() {
   // user explicitly cancels auth → clear pending destination
   state.ui.pendingScreen = null;
   state.ui.pendingAction = null; // STEP 18.27
+  state.ui.pendingActionId = null; // STEP 18.28 — clear stale token
   closeSheet("login-sheet");
 }
     
@@ -2268,6 +2340,7 @@ function handleLogout() {
   state.admin.token = null;
   state.ui.pendingScreen = null;
   state.ui.pendingAction = null; // STEP 18.27
+  state.ui.pendingActionId = null; // STEP 18.28 — clear stale token
   state.view.screen = "list";
   renderHeader();
   render();
