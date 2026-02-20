@@ -248,6 +248,66 @@
    font-size: 12px;
  }   
 
+/* ===============================
+   SHEET + BACKDROP (STEP 18.28)
+   - hidden by default
+   - show only when .show exists
+   =============================== */
+
+body.no-scroll {
+  overflow: hidden;
+}
+
+#backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+  z-index: 999;
+}
+#backdrop.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 85vh;
+  overflow: auto;
+
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-radius: 22px 22px 0 0;
+  box-shadow: 0 -12px 30px rgba(0,0,0,0.18);
+
+  transform: translateY(110%);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform 220ms cubic-bezier(.2,.8,.2,1),
+    opacity 220ms ease;
+  z-index: 1000;
+}
+.sheet.show {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* optional: spacing for sheet content containers you already use */
+.login-sheet,
+.qty-picker {
+  padding: 16px;
+}
+ 
   </style>
 
   <!-- =================================================
@@ -696,15 +756,33 @@ function openAlertAudit(severity) {
   render();
 }
     
-function openSheet(id) {
-   document.getElementById(id)?.classList.add("show");
-   state.ui.overlayCount++;
- }
+function syncOverlayUI() {
+  const on = (state.ui.overlayCount || 0) > 0;
+  document.getElementById("backdrop")?.classList.toggle("show", on);
+  document.body.classList.toggle("no-scroll", on);
+}
+
+ function openSheet(id) {
+   const el = document.getElementById(id);
+   if (!el) return;
+   // 🔴 CHANGED: กัน overlayCount drift (ถ้าเปิดอยู่แล้ว ไม่นับซ้ำ)
+   if (!el.classList.contains("show")) {
+     el.classList.add("show");
+     state.ui.overlayCount = (state.ui.overlayCount || 0) + 1;
+     syncOverlayUI(); // 🔴 CHANGED:
+   }
+  }
 
  function closeSheet(id) {
-   document.getElementById(id)?.classList.remove("show");
-   state.ui.overlayCount = Math.max(0, state.ui.overlayCount - 1);
- }
+   const el = document.getElementById(id);
+   if (!el) return;
+   // 🔴 CHANGED: กัน overlayCount drift (ถ้าปิดอยู่แล้ว ไม่นับลดซ้ำ)
+   if (el.classList.contains("show")) {
+     el.classList.remove("show");
+     state.ui.overlayCount = Math.max(0, (state.ui.overlayCount || 0) - 1);
+     syncOverlayUI(); // 🔴 CHANGED:
+   }
+  }
 
 function jumpToAuditRecord(el) {
   if (!el) return;
