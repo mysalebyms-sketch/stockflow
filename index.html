@@ -562,6 +562,7 @@ const state = {
      overlayCount: 0,
      error: null,
      pendingScreen: null,          // STEP 18.24 — stored admin destination after login
+     pendingAction: null,          // STEP 18.27 — one-shot action to resume after login (in-memory)
      _lastPersistedScreen: null,   // STEP 18.24 — internal guard (avoid noisy writes)
      _skipPersistOnce: false       // STEP 18.24 — prevent boot overwrite when pendingScreen exists
      },
@@ -1259,7 +1260,7 @@ const sorted = [...filtered].sort(function (a, b) {
 }
     
 function exportAnalyticsJSON() {
-  if (!requireAdmin()) return;
+  if (!requireAdmin({ type: "export_analytics_json" })) return;
 
   const audits = collectAllAudits();
   const trend = buildAuditTrendComparison(audits);
@@ -2004,7 +2005,7 @@ function buildOrderPNGContainer(order) {
 }
     
 function exportOrderPNG(orderId) {
-  if (!requireAdmin()) return;
+  if (!requireAdmin({ type: "export_order_png", orderId })) return;
   if (!confirm("ต้องการ Export PNG สำหรับคำสั่งซื้อนี้หรือไม่?")) return;
 
   const order = state.orders.find(o => o.id === orderId);
@@ -2060,11 +2061,20 @@ function exportOrderPNG(orderId) {
  };
 }  
        
-function requireAdmin() {
-  if (!state.admin.loggedIn) {
-    console.warn("Admin permission required");
-    // STEP 18.26 — align UX with screen-guard: prompt login on protected actions too
-    // NOTE: do NOT set pendingScreen here (this is an action guard, not screen navigation)
+function requireAdmin(pendingAction) {
+   if (!state.admin.loggedIn) {
+     console.warn("Admin permission required");
+     // STEP 18.26 — align UX with screen-guard: prompt login on protected actions too
+     // NOTE: do NOT set pendingScreen here (this is an action guard, not screen navigation)
+    if (pendingAction && typeof pendingAction === "object") {
+      // store one-shot action (in-memory only)
+      // clone minimal payload to avoid accidental mutation (esp. arrays)
+      if (Array.isArray(pendingAction.orderIds)) {
+        state.ui.pendingAction = { ...pendingAction, orderIds: [...pendingAction.orderIds] };
+      } else {
+        state.ui.pendingAction = { ...pendingAction };
+      }
+    }
     openLogin();
     return false;
   }
@@ -2091,6 +2101,58 @@ function consumePendingScreenAfterLogin() {
   state.ui._lastPersistedScreen = null; // force render() to consider save
   saveLastScreen();
 }    
+
+// STEP 18.27 — Consume pendingAction after Login (one-shot)
+function consumePendingActionAfterLogin() {
+  const a = state?.ui?.pendingAction;
+  if (!a) return false;
+
+  // consume first (prevent loops)
+  state.ui.pendingAction = null;
+
+  try {
+    switch (a.type) {
+      case "export_order_png":
+        exportOrderPNG(a.orderId);
+        return true;
+      case "export_order_pdf":
+        exportOrderPDF(a.orderId);
+        return true;
+      case "print_order":
+        printOrder(a.orderId);
+        return true;
+      case "export_audit":
+        exportAuditLog(a.format || "json");
+        return true;
+      case "export_analytics_png":
+        exportAnalyticsPNG();
+        return true;
+      case "export_analytics_json":
+        exportAnalyticsJSON();
+        return true;
+      case "export_orders_pdf_batch":
+        exportOrdersPDFBatch(Array.isArray(a.orderIds) ? a.orderIds : []);
+        return true;
+      case "archive_order":
+        archiveOrder(a.orderId);
+        return true;
+      case "restore_order":
+        restoreOrder(a.orderId);
+        return true;
+      case "mark_paid":
+        markOrderPaid(a.orderId);
+        return true;
+      case "mark_shipped":
+        markOrderShipped(a.orderId);
+        return true;
+      default:
+        return false;
+    }
+  } catch (e) {
+    console.warn("Failed to resume pending action", e);
+    return false;
+  }
+}
     
 function goToList() {
    state.view.screen = "list";
@@ -2133,6 +2195,9 @@ function handleLoginSuccess(user) {
 
   closeSheet("login-sheet");
 
+  // STEP 18.27 — resume pending action first (one-shot)
+  consumePendingActionAfterLogin();
+
   // Auto-return if there is pending screen
   consumePendingScreenAfterLogin();
 
@@ -2171,6 +2236,7 @@ function renderLoginSheet() {
 function cancelLogin() {
   // user explicitly cancels auth → clear pending destination
   state.ui.pendingScreen = null;
+  state.ui.pendingAction = null; // STEP 18.27
   closeSheet("login-sheet");
 }
     
@@ -2201,6 +2267,7 @@ function handleLogout() {
   state.admin.user = null;
   state.admin.token = null;
   state.ui.pendingScreen = null;
+  state.ui.pendingAction = null; // STEP 18.27
   state.view.screen = "list";
   renderHeader();
   render();
@@ -2334,7 +2401,7 @@ function logAudit(order, action) {
 }
 
 function exportAuditLog(format = "json") {
-  if (!requireAdmin()) return;
+  if (!requireAdmin({ type: "export_audit", format })) return;
 
   const meta = getExportMeta();
 
@@ -2412,7 +2479,7 @@ let audits = state.orders
 }
     
 function archiveOrder(orderId) {
-  if (!requireAdmin()) return;
+  if (!requireAdmin({ type: "archive_order", orderId })) return;
 
   const ok = confirm("คุณแน่ใจหรือไม่ว่าต้องการ Archive คำสั่งซื้อนี้?");
   if (!ok) return;
@@ -2433,7 +2500,7 @@ function archiveOrder(orderId) {
 }
 
 function restoreOrder(orderId) {
-  if (!requireAdmin()) return;
+  if (!requireAdmin({ type: "restore_order", orderId })) return;
   const order = state.orders.find(o => o.id === orderId);
   if (!order) return;
 
@@ -2445,7 +2512,7 @@ function restoreOrder(orderId) {
 } 
 
 function markOrderPaid(orderId) {
-  if (!requireAdmin()) return;
+  if (!requireAdmin({ type: "mark_paid", orderId })) return;
   const order = state.orders.find(o => o.id === orderId);
   if (!order || order.status !== "new") return;
 
@@ -2456,7 +2523,7 @@ function markOrderPaid(orderId) {
 }
 
 function markOrderShipped(orderId) {
-  if (!requireAdmin()) return;
+  if (!requireAdmin({ type: "mark_shipped", orderId })) return;
   const order = state.orders.find(o => o.id === orderId);
   if (!order || order.status !== "paid") return;
 
@@ -2467,7 +2534,7 @@ function markOrderShipped(orderId) {
 }
 
 function printOrder(orderId) {
-  if (!requireAdmin()) return;
+  if (!requireAdmin({ type: "print_order", orderId })) return;
 
   const order = state.orders.find(o => o.id === orderId);
   if (!order) return;
@@ -2542,7 +2609,7 @@ function svgToImage(element, width, height) {
 }
 
 function exportAnalyticsPNG() {
-  if (!requireAdmin()) return;
+  if (!requireAdmin({ type: "export_analytics_png" })) return;
 
   const section = document.querySelector(".admin-analytics");
   if (!section) return;
@@ -2569,7 +2636,7 @@ function exportAnalyticsPNG() {
 }
    
  function exportOrderPDF(orderId) {
-   if (!requireAdmin()) return;
+   if (!requireAdmin({ type: "export_order_pdf", orderId })) return;
    if (!confirm("ต้องการ Export PDF (A4) สำหรับคำสั่งซื้อนี้หรือไม่?")) return;
 
    const order = state.orders.find(o => o.id === orderId);
@@ -2725,7 +2792,7 @@ function toggleBatchShippedOnly(value) {
 }
 
  function exportOrdersPDFBatch(orderIds) {
-  if (!requireAdmin()) return;
+  if (!requireAdmin({ type: "export_orders_pdf_batch", orderIds })) return;
 
   if (!Array.isArray(orderIds) || orderIds.length === 0) {
     alert("ไม่มีคำสั่งซื้อให้ Export");
