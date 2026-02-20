@@ -623,8 +623,10 @@ function renderHeader() {
      <div class="actions">
        ${
          state.admin.loggedIn
-           ? `<span>${state.admin.user}</span> ${renderAlertBadge(alertStats)}`
-           : `<button onclick="openLogin()">🔒 ล็อกอิน</button>`
+          ? `<span>${state.admin.user}</span>
+               ${renderAlertBadge(alertStats)}
+               <button onclick="handleLogout()">🚪 ออกจากระบบ</button>`
+             : `<button onclick="openLogin()">🔒 ล็อกอิน</button>`
        }
      </div>
    `;
@@ -651,6 +653,8 @@ function renderAlertBadge(stats) {
 
 // STEP 18.3 — Open Analytics from Alert Badge
 function openAlertAnalytics() {
+  // STEP 18.26 — minimal auth guard UX (remember destination)
+  if (!requireAdminScreen("analytics")) return;
   state.view.screen = "analytics";
   state.analytics.alertOnly = true; // transient flag
   render();
@@ -658,6 +662,8 @@ function openAlertAnalytics() {
 
 // STEP 18.5 — Open Audit from Alert Badge
 function openAlertAudit(severity) {
+  // STEP 18.26 — minimal auth guard UX (remember destination)
+  if (!requireAdminScreen("audit")) return;
   state.view.screen = "audit";
   state.audit.alertSeverity = severity; // transient
 
@@ -962,15 +968,15 @@ function submitOrder() {
 }
 
 function viewOrder() {
-  if (!state.admin.loggedIn) {
-    openLogin();
-    return;
-  }
+  // STEP 18.26 — minimal auth guard UX (remember destination)
+  if (!requireAdminScreen("admin")) return;
   state.view.screen = "admin";
   render();
 }
 
 function openAuditViewer() {
+  // STEP 18.26 — minimal auth guard UX (remember destination)
+  if (!requireAdminScreen("audit")) return;
   // STEP 18.21 — clear transient alert context when opening audit normally
   state.audit.alertSeverity = null;
   state.audit.alertTargetActions = [];
@@ -2104,8 +2110,14 @@ function openProduct(productId) {
 }
 
 function openLogin() {
-   openSheet("login-sheet");
- }
+  // STEP 18.26 — ensure login sheet is wired before showing
+  renderLoginSheet();
+  openSheet("login-sheet");
+  // focus first input for better UX
+  requestAnimationFrame(() => {
+    document.getElementById("login-user")?.focus();
+  });
+}
 
 // STEP 18.25 — Basic Login Success Handler
 function handleLoginSuccess(user) {
@@ -2117,6 +2129,65 @@ function handleLoginSuccess(user) {
   // Auto-return if there is pending screen
   consumePendingScreenAfterLogin();
 
+  renderHeader();
+  render();
+}    
+
+// STEP 18.26 — Login Sheet Wiring (submit/enter)
+function renderLoginSheet() {
+  const sheet = document.getElementById("login-sheet");
+  if (!sheet) return;
+
+  sheet.innerHTML = `
+    <div class="login-sheet">
+      <h3>🔒 Admin Login</h3>
+      <form onsubmit="submitLogin(event)">
+        <label class="muted">Username</label>
+        <input id="login-user" type="text" autocomplete="username" />
+
+        <label class="muted" style="margin-top:8px;display:block;">Password</label>
+        <input id="login-pass" type="password" autocomplete="current-password" />
+
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <button class="btn-primary" type="submit">เข้าสู่ระบบ</button>
+          <button class="btn-secondary" type="button" onclick="closeSheet('login-sheet')">ยกเลิก</button>
+        </div>
+        <div class="muted" style="margin-top:10px;">
+          * โหมดตัวอย่าง: ใช้ชื่ออะไรก็ได้เพื่อเข้าระบบ (demo)
+        </div>
+      </form>
+    </div>
+  `;
+}
+
+// STEP 18.26 — Login submit handler
+function submitLogin(evt) {
+  evt?.preventDefault?.();
+  const user = (document.getElementById("login-user")?.value || "").trim();
+  // NOTE: demo auth (no real validation)
+  handleLoginSuccess(user || "admin");
+}
+
+// STEP 18.26 — Minimal Auth Guard UX (remember destination then login)
+function requireAdminScreen(target) {
+  if (state.admin.loggedIn) return true;
+  const allowed = ["admin", "audit", "analytics"];
+  if (allowed.includes(target)) {
+    state.ui.pendingScreen = target;
+  }
+  openLogin();
+  return false;
+}
+
+// STEP 18.26 — Logout (minimal)
+function handleLogout() {
+  const ok = confirm("ต้องการออกจากระบบหรือไม่?");
+  if (!ok) return;
+  state.admin.loggedIn = false;
+  state.admin.user = null;
+  state.admin.token = null;
+  state.ui.pendingScreen = null;
+  state.view.screen = "list";
   renderHeader();
   render();
 }    
