@@ -9,13 +9,29 @@
 
   <title>Stock Viewer v2</title>
 
-  <!-- =================================================
-       TH FONT (Sarabun) — Global UI typography
+ <!-- =================================================
+       TH FONT (Sarabun) — Offline / Self-host (STEP 19)
+       Place files in: /assets/fonts/
   ================================================== -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="preload" href="assets/fonts/Sarabun-Regular.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="assets/fonts/Sarabun-SemiBold.woff2" as="font" type="font/woff2" crossorigin />
 
+  <style id="font-sarabun">
+    @font-face {
+      font-family: "Sarabun";
+      src: url("assets/fonts/Sarabun-Regular.woff2") format("woff2");
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: "Sarabun";
+      src: url("assets/fonts/Sarabun-SemiBold.woff2") format("woff2");
+      font-weight: 600;
+      font-style: normal;
+      font-display: swap;
+    }
+  </style>
   <!-- =================================================
        DESIGN TOKENS (LOCKED)
   ================================================== -->
@@ -2753,10 +2769,22 @@ function printOrder(orderId) {
     <html>
     <head>
       <title>Order ${order.id}</title>
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-      <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600&display=swap" rel="stylesheet" />
+      <base href="${location.href.replace(/[^/]*$/, "")}">
       <style>
+      @font-face {
+          font-family: "Sarabun";
+          src: url("assets/fonts/Sarabun-Regular.woff2") format("woff2");
+          font-weight: 400;
+          font-style: normal;
+          font-display: swap;
+        }
+        @font-face {
+          font-family: "Sarabun";
+          src: url("assets/fonts/Sarabun-SemiBold.woff2") format("woff2");
+          font-weight: 600;
+          font-style: normal;
+          font-display: swap;
+        }
         body { font-family: "Sarabun", Arial, sans-serif; padding: 24px; }
         h1, h2 { margin-bottom: 8px; }
         .section { margin-bottom: 16px; }
@@ -2915,10 +2943,22 @@ function exportAnalyticsPNG() {
      <html>
      <head>
        <title>order-${order.id}.pdf</title>
-       <link rel="preconnect" href="https://fonts.googleapis.com" />
-       <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-       <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600&display=swap" rel="stylesheet" />
+       <base href="${location.href.replace(/[^/]*$/, "")}">
        <style>
+       @font-face {
+           font-family: "Sarabun";
+           src: url("assets/fonts/Sarabun-Regular.woff2") format("woff2");
+           font-weight: 400;
+           font-style: normal;
+           font-display: swap;
+         }
+         @font-face {
+           font-family: "Sarabun";
+           src: url("assets/fonts/Sarabun-SemiBold.woff2") format("woff2");
+           font-weight: 600;
+           font-style: normal;
+           font-display: swap;
+         }
          @page {
            size: A4;
            margin: 24mm;
