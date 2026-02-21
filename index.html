@@ -2239,7 +2239,8 @@ function consumePendingActionAfterLogin() {
         return true;
       case "export_order_pdf":
         if (!orderId) return false;
-        exportOrderPDF(orderId);
+        // STEP 18.29 — already confirmed in popupTypes guard, avoid double-confirm
+        exportOrderPDF(orderId, { skipConfirm: true });
         return true;
       case "print_order":
         if (!orderId) return false;
@@ -2262,7 +2263,7 @@ function consumePendingActionAfterLogin() {
         exportAnalyticsJSON();
         return true;
       case "export_orders_pdf_batch":
-        exportOrdersPDFBatch(orderIds);
+        exportOrdersPDFBatch(orderIds, { skipConfirm: true });
         return true;
       case "archive_order":
         if (!orderId) return false;
@@ -2285,7 +2286,19 @@ function consumePendingActionAfterLogin() {
      }
     };
 
-    // defer to let sheet close + layout settle
+// STEP 18.29 — popup-sensitive actions must run under user gesture
+    const popupTypes = new Set([
+      "print_order",
+      "export_order_pdf",
+      "export_orders_pdf_batch"
+    ]);
+    if (popupTypes.has(type)) {
+      const ok = confirm("ต้องการดำเนินการต่อสำหรับงานที่ร้องขอหรือไม่? (อาจมีการเปิดหน้าต่างใหม่)");
+      if (!ok) return false;
+      return !!run();
+    }
+
+    // non-popup actions: defer to let sheet close + layout settle
     setTimeout(run, 80);
     return true;
   } catch (e) {
@@ -2786,9 +2799,12 @@ function exportAnalyticsPNG() {
   };
 }
    
- function exportOrderPDF(orderId) {
+ function exportOrderPDF(orderId, options = {}) {
    if (!requireAdmin({ type: "export_order_pdf", orderId })) return;
-   if (!confirm("ต้องการ Export PDF (A4) สำหรับคำสั่งซื้อนี้หรือไม่?")) return;
+   const skipConfirm = !!options.skipConfirm;
+   if (!skipConfirm) {
+     if (!confirm("ต้องการ Export PDF (A4) สำหรับคำสั่งซื้อนี้หรือไม่?")) return;
+   }
 
    const order = state.orders.find(o => o.id === orderId);
    if (!order) return;
@@ -2942,7 +2958,7 @@ function toggleBatchShippedOnly(value) {
   renderAdminOrders();
 }
 
- function exportOrdersPDFBatch(orderIds) {
+ function exportOrdersPDFBatch(orderIds, options = {}) {
   if (!requireAdmin({ type: "export_orders_pdf_batch", orderIds })) return;
 
   if (!Array.isArray(orderIds) || orderIds.length === 0) {
@@ -2965,10 +2981,13 @@ function toggleBatchShippedOnly(value) {
     return;
   }
 
-  const ok = confirm(
-    `ต้องการ Export PDF จำนวน ${orderIds.length} รายการหรือไม่?\n(จะเปิดทีละไฟล์)`
-  );
-  if (!ok) return;
+const skipConfirm = !!options.skipConfirm;
+  if (!skipConfirm) {
+    const ok = confirm(
+      `ต้องการ Export PDF จำนวน ${orderIds.length} รายการหรือไม่?\n(จะเปิดทีละไฟล์)`
+    );
+    if (!ok) return;
+  }
 
    orders.forEach(o =>
      logAudit(o, AUDIT_ACTION.EXPORT_PDF_BATCH)
@@ -2983,12 +3002,16 @@ function toggleBatchShippedOnly(value) {
       alert("📄 Export PDF (Batch) เสร็จสมบูรณ์");
       return;
     }
+const currentId = orderIds[index];
+    const go = confirm(`เปิดไฟล์ PDF ถัดไปหรือไม่?\n(${index + 1}/${orderIds.length})`);
+    if (!go) return;
 
-    exportOrderPDF(orderIds[index]);
+    exportOrderPDF(currentId, { skipConfirm: true });
     index++;
 
-    // delay ป้องกัน popup block
-    setTimeout(next, 800);
+    // STEP 18.29 — next file must be triggered by user gesture (confirm above),
+    // so call next() immediately (it will ask confirm again)
+    next();
   }
 
   next();
