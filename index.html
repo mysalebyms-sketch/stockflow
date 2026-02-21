@@ -10,6 +10,13 @@
   <title>Stock Viewer v2</title>
 
   <!-- =================================================
+       TH FONT (Sarabun) — Global UI typography
+  ================================================== -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600&display=swap" rel="stylesheet" />
+
+  <!-- =================================================
        DESIGN TOKENS (LOCKED)
   ================================================== -->
   <style id="tokens">
@@ -43,6 +50,16 @@
   ================================================== -->
   <style id="base-style">
     /* reset + body + typography */
+    body {
+      font-family: "Sarabun", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Thai", "Helvetica Neue", Arial, sans-serif;
+      color: var(--gray-900);
+      background: var(--white);
+      line-height: 1.55;
+      font-size: 16px;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
   </style>
 
   <!-- =================================================
@@ -2037,7 +2054,7 @@ const PNG_A4_PRESET = {
   width: 794,   // A4 @ 96dpi
   height: 1123,
   margin: 48,
-  fontFamily: "Arial, sans-serif",
+  fontFamily: '"Sarabun", Arial, sans-serif',
   baseFontSize: 14
 };
 
@@ -2102,6 +2119,10 @@ function exportOrderPNG(orderId) {
 
   (async () => {
     try {
+      // ensure webfont loaded before capture (Thai text won't fallback)
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
       // capture full container as a big canvas
       const fullCanvas = await captureElementCanvas(container, {
         scale,
@@ -2720,8 +2741,11 @@ function printOrder(orderId) {
     <html>
     <head>
       <title>Order ${order.id}</title>
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+      <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600&display=swap" rel="stylesheet" />
       <style>
-        body { font-family: sans-serif; padding: 24px; }
+        body { font-family: "Sarabun", Arial, sans-serif; padding: 24px; }
         h1, h2 { margin-bottom: 8px; }
         .section { margin-bottom: 16px; }
         .item, .audit { display: flex; justify-content: space-between; }
@@ -2757,7 +2781,14 @@ function printOrder(orderId) {
       </div>
 
       <script>
-        window.onload = () => window.print();
+        window.onload = async () => {
+          try {
+            if (document.fonts && document.fonts.ready) {
+              await document.fonts.ready;
+            }
+          } catch {}
+          window.print();
+        };
       <\/script>
     </body>
     </html>
@@ -2832,6 +2863,10 @@ function exportAnalyticsPNG() {
 
   (async () => {
     try {
+      // ensure webfont loaded before capture
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
       const scale = Math.max(2, Number(window.devicePixelRatio) || 1);
       const canvas = await captureElementCanvas(section, { scale, backgroundColor: "#fff" });
       await downloadCanvasPNG(canvas, "analytics-snapshot.png");
@@ -2868,6 +2903,9 @@ function exportAnalyticsPNG() {
      <html>
      <head>
        <title>order-${order.id}.pdf</title>
+       <link rel="preconnect" href="https://fonts.googleapis.com" />
+       <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+       <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600&display=swap" rel="stylesheet" />
        <style>
          @page {
            size: A4;
@@ -2875,7 +2913,7 @@ function exportAnalyticsPNG() {
          }
 
 body {
-           font-family: Arial, sans-serif;
+           font-family: "Sarabun", Arial, sans-serif;
            font-size: 12pt;
            color: #000;
            margin: 0;
@@ -2926,7 +2964,7 @@ body {
            font-size: 10pt;
          }
          
-       </style>
+        </style>
      </head>
      <body>
        <div class="pdf-header">
@@ -2973,7 +3011,12 @@ body {
 
        </div> <!-- /.pdf-content -->  
        <script>
-         window.onload = () => {
+window.onload = async () => {
+           try {
+             if (document.fonts && document.fonts.ready) {
+               await document.fonts.ready;
+             }
+           } catch {}
            window.print();
          };
        <\/script>
