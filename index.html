@@ -1467,7 +1467,7 @@ audits.sort((a, b) => b.at - a.at);
 
   app.innerHTML = `
     <section class="admin-audit">
-      <h2>🧾 System Audit Log</h2>
+      <h2>🧾 บันทึกการทำงานของระบบ</h2>
 
       <!-- STEP 18.11 — Alert Priority Legend -->
   ${state.audit.alertSeverity ? `
@@ -1480,15 +1480,15 @@ audits.sort((a, b) => b.at - a.at);
   ` : ""}
 
 <div class="audit-summary">
-   <h3>📊 Summary</h3>
+   <h3>📊 สรุปภาพรวม</h3>
    <div>
-     <strong>By Action:</strong>
+     <strong>แยกตามประเภทการกระทำ:</strong>
      ${Object.entries(summary.byAction)
-       .map(([k, v]) => `<span>${k}: ${v}</span>`)
+       .map(([k, v]) => `<span>${getActionLabel(k)}: ${v}</span>`)
        .join(" | ")}
    </div>
    <div>
-     <strong>By Admin:</strong>
+     <strong>แยกตามผู้ดูแล:</strong>
      ${Object.entries(summary.byAdmin)
        .map(([k, v]) => `<span>${k}: ${v}</span>`)
        .join(" | ")}
@@ -1498,7 +1498,7 @@ audits.sort((a, b) => b.at - a.at);
 <div class="audit-tools">
   <input
     type="text"
-    placeholder="Search order / admin / keyword"
+    placeholder="ค้นหา เลขคำสั่งซื้อ / ผู้ดูแล / คำที่เกี่ยวข้อง"
     value="${state.audit.search}"
     oninput="setAuditSearch(this.value)"
   />
@@ -1517,17 +1517,17 @@ audits.sort((a, b) => b.at - a.at);
 </div>
 
 <div class="audit-export">
-  <button onclick="exportAuditLog('json')">⬇️ Export JSON</button>
-  <button onclick="exportAuditLog('csv')">⬇️ Export CSV</button>
+  <button onclick="exportAuditLog('json')">⬇️ ดาวน์โหลด JSON</button>
+  <button onclick="exportAuditLog('csv')">⬇️ ดาวน์โหลด CSV</button>
 </div>
 
       <label>
-        Filter:
+        กรองตามประเภท:
         <select onchange="setAuditFilter(this.value)">
-          <option value="all">All</option>
+          <option value="all">ทั้งหมด</option>
           ${Object.values(AUDIT_ACTION).map(a => `
             <option value="${a}" ${state.audit.filterAction === a ? "selected" : ""}>
-              ${a}
+              ${getActionLabel(a)}
             </option>
           `).join("")}
         </select>
@@ -1547,7 +1547,7 @@ audits.sort((a, b) => b.at - a.at);
    <span class="audit-toggle">
      ${state.audit.collapsedActions[action] ? "▸" : "▾"}
    </span>
-   ${action}
+   ${getActionLabel(action)}
  </h3>
 ${state.audit.collapsedActions[action]
     ? ""
@@ -1706,7 +1706,7 @@ if (state.audit._fromAlert && state.audit._prevCollapsedActions) {
 
       <div class="analytics-export">
         <button onclick="exportAnalyticsPNG()">🖼️ Export PNG</button>
-        <button onclick="exportAnalyticsJSON()">⬇️ Export JSON</button>
+        <button onclick="exportAnalyticsJSON()">⬇️ ดาวน์โหลด JSON</button>
       </div>
 
       ${snapshots.length > 0 ? `
@@ -2028,6 +2028,18 @@ const AUDIT_ACTION = {
   EXPORT_PDF: "export_pdf",
   EXPORT_PDF_BATCH: "export_pdf_batch"
 };
+
+function getActionLabel(action) {
+  const map = {
+    archive: "เก็บถาวร",
+    restore: "กู้คืน",
+    mark_paid: "ชำระแล้ว",
+    mark_shipped: "จัดส่งแล้ว",
+    export_pdf: "ส่งออก PDF",
+    export_pdf_batch: "ส่งออก PDF (หลายรายการ)"
+  };
+  return map[action] || action;
+}  
 </script>
 
 <!-- PNG Export Engine (production-grade) -->
