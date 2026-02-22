@@ -2065,50 +2065,52 @@ function getActionLabel(action) {
 
 <!-- PNG Export Engine (production-locked / self-host) -->
 <!-- LOCK: html2canvas v1.4.1 (prefer pinned filename; fallback to legacy local name to avoid breaking flow) -->
-<script defer>
+<script defer data-vendor="html2canvas@1.4.1">
   (function () {
     var expected = "1.4.1";
-    var primary = "assets/vendor/html2canvas-1.4.1.min.js";
-    var fallback = "assets/vendor/html2canvas.min.js"; // legacy local name (if repo hasn't renamed yet)
+    // Try pinned first, then common alternatives (path/base variations)
+    var candidates = [
+      "assets/vendor/html2canvas-1.4.1.min.js",
+      "./assets/vendor/html2canvas-1.4.1.min.js",
+      "assets/vendor/html2canvas.min.js",
+      "./assets/vendor/html2canvas.min.js"
+    ];
 
     function verify() {
-      var ok = (typeof window.html2canvas === "function");
-      if (!ok) {
+      if (typeof window.html2canvas !== "function") {
         console.error("[Vendor] html2canvas is missing (offline/local asset check failed)");
-        return;
+        return false;
       }
       var v = window.html2canvas && window.html2canvas.version;
       if (typeof v === "string" && v !== expected) {
-        console.warn("[Vendor] html2canvas version mismatch:", v, "(expected " + expected + ")");
+        console.warn("[Vendor] html2canvas version mismatch:", v, "(expected", expected + ")");
       }
+      return true;
     }
 
-    function load(src, tag) {
-      return new Promise(function (resolve, reject) {
-        var s = document.createElement("script");
-        s.defer = true;
-        s.src = src;
-        s.setAttribute("data-vendor", tag);
-        s.onload = function () { resolve(true); };
-        s.onerror = function () { reject(new Error("Failed to load " + src)); };
-        document.head.appendChild(s);
-      });
+    function loadNext(i) {
+      if (verify()) return;
+      if (i >= candidates.length) {
+        console.error("[Vendor] Failed to load html2canvas (checked):", candidates.join(", "));
+        return;
+      }
+      var src = candidates[i];
+      var s = document.createElement("script");
+      s.defer = true;
+      s.src = src;
+      s.onload = function () {
+        // verify after this candidate loaded
+        if (!verify()) loadNext(i + 1);
+      };
+      s.onerror = function () {
+        console.warn("[Vendor] Failed to load html2canvas candidate:", src);
+        loadNext(i + 1);
+      };
+      document.head.appendChild(s);
     }
 
-    load(primary, "html2canvas@" + expected)
-      .then(function () {
-        verify();
-      })
-      .catch(function (e1) {
-        console.error("[Vendor] Failed to load html2canvas (pinned local asset):", primary);
-        // fallback to keep export usable while asset rename/deploy is fixed
-        return load(fallback, "html2canvas@fallback").then(function () {
-          console.warn("[Vendor] Using fallback html2canvas file:", fallback);
-          verify();
-        }).catch(function () {
-          console.error("[Vendor] Failed to load html2canvas (fallback local asset):", fallback);
-        });
-      });
+    // start
+    loadNext(0);
   })();
 </script>
   
