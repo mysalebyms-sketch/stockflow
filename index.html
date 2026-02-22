@@ -1949,7 +1949,8 @@ function renderAdminOrderDetail() {
   const order = state.orders.find(o => o.id === state.selectedOrderId);
 
   if (!order) {
-    renderAdminOrders();
+    state.view.screen = "admin";
+    render();
     return;
   }
 
@@ -3135,12 +3136,15 @@ const skipConfirm = !!options.skipConfirm;
      logAudit(o, AUDIT_ACTION.EXPORT_PDF_BATCH)
    ); 
 
+   saveOrders();
+
   let index = 0;
 
   function next() {
     if (index >= orderIds.length) {
       state.batchSelection.selectedOrderIds = [];
-      renderAdminOrders();
+      state.view.screen = "admin";
+      render();
       alert("📄 Export PDF (Batch) เสร็จสมบูรณ์");
       return;
     }
