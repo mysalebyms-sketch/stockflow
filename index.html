@@ -686,7 +686,7 @@ function loadLastScreen() {
     if (ageMs < 0 || ageMs > ttlMs) return;
 
     const screen = String(parsed.screen || "");
-    const allowed = ["list", "cart", "admin", "audit", "analytics"];
+    const allowed = ["list", "cart", "admin", "admin_products", "audit", "analytics"];
     if (!allowed.includes(screen)) return;
 
     // restore non-admin screens immediately
@@ -704,7 +704,7 @@ function loadLastScreen() {
 function saveLastScreen() {
   try {
     const screen = String(state.view.screen || "list");
-    const allowed = ["list", "cart", "admin", "audit", "analytics"];
+    const allowed = ["list", "cart", "admin", "admin_products", "audit", "analytics"];
     if (!allowed.includes(screen)) return;
     localStorage.setItem(
       LAST_SCREEN_KEY,
@@ -948,7 +948,7 @@ const state = {
   },
 
    view: {
-     screen: "list", // list | detail | cart | success | admin
+     screen: "list", // list | detail | cart | success | admin | admin_products
      qty: 1
    },
 
@@ -990,6 +990,18 @@ const state = {
    hideZeroDelta: false,
    snapshotResetNotice: false // STEP 16F
    }
+  ,
+  // STEP C — Admin Product Management (transient UI state)
+  adminProducts: {
+    editingId: null, // null => create mode
+    draft: {
+      productId: "",
+      name: "",
+      price: "",
+      stock: "",
+      description: ""
+    }
+  }
  };
    
   </script>
@@ -1169,41 +1181,57 @@ function render() {
     state.ui._lastPersistedScreen = state.view.screen;
   } else if (state.ui._lastPersistedScreen !== state.view.screen) {
     state.ui._lastPersistedScreen = state.view.screen;
+
     // Only block overwrite when we're on "list" due to unauth guard while pendingScreen exists.
     const shouldBlock =
       state.ui.pendingScreen &&
       !state.admin.loggedIn &&
       state.view.screen === "list";
+
     if (!shouldBlock) saveLastScreen();
-   }
+  }
 
-   switch (state.view.screen) {
+  switch (state.view.screen) {
+    case "audit":
+      renderAdminAudit();
+      break;
 
-     case "audit":
-       renderAdminAudit();
-       break;  
-     case "analytics":
-       renderAdminAnalytics();
-       break;  
-     case "list":
-       renderProductList();
-       break;
-     case "detail":
-       renderProductDetail();
-       break;
-     case "cart":
-       renderCart();
-       break;
-     case "success":
-       renderSuccess();
-       break;
-     case "admin":
-       renderAdminOrders();
-       break;  
-     default:
-       console.warn("Unknown screen:", state.view.screen);
-   }
- }
+    case "analytics":
+      renderAdminAnalytics();
+      break;
+
+    case "list":
+      renderProductList();
+      break;
+
+    case "detail":
+      renderProductDetail();
+      break;
+
+    case "cart":
+      renderCart();
+      break;
+
+    case "success":
+      renderSuccess();
+      break;
+
+    case "admin":
+      renderAdminOrders();
+      break;
+
+    case "admin_products":
+      renderAdminProducts();
+      break;
+
+    default:
+      console.warn("Unknown screen:", state.view.screen);
+      // fallback safety
+      state.view.screen = "list";
+      renderProductList();
+      break;
+  }
+}
 
 function renderProductList() {
   const app = document.getElementById("app");
@@ -1394,6 +1422,13 @@ function viewOrder() {
   state.view.screen = "admin";
   render();
 }
+
+// STEP C — Navigate to Admin Product Management
+function openAdminProducts() {
+  if (!requireAdminScreen("admin_products")) return;
+  state.view.screen = "admin_products";
+  render();
+}    
 
 function openAuditViewer() {
   // STEP 18.26 — minimal auth guard UX (remember destination)
@@ -2224,6 +2259,7 @@ function renderAdminOrders() {
   📄 Export PDF (Selected)
 </button>
 
+      <button onclick="openAdminProducts()">🛠️ จัดการสินค้า</button>
       <button onclick="goToList()">กลับหน้าร้าน</button>
       <button onclick="openAuditViewer()">🧾 Audit Viewer</button>
     </section>
@@ -2607,7 +2643,7 @@ function consumePendingScreenAfterLogin() {
   if (!target) return;
 
   // allow only admin destinations
-  const allowed = ["admin", "audit", "analytics"];
+  const allowed = ["admin", "admin_products", "audit", "analytics"];
   if (!allowed.includes(target)) {
     state.ui.pendingScreen = null;
     return;
@@ -2848,7 +2884,7 @@ function submitLogin(evt) {
 // STEP 18.26 — Minimal Auth Guard UX (remember destination then login)
 function requireAdminScreen(target) {
   if (state.admin.loggedIn) return true;
-  const allowed = ["admin", "audit", "analytics"];
+  const allowed = ["admin", "admin_products", "audit", "analytics"];
   if (allowed.includes(target)) {
     state.ui.pendingScreen = target;
   }
@@ -2869,6 +2905,298 @@ function handleLogout() {
   state.view.screen = "list";
   renderHeader();
   render();
+} 
+
+/* ===============================
+   STEP C — Admin Product Management
+   Create / Edit / Delete / Stock
+   (Persist via saveProducts only)
+=============================== */
+
+function sanitizeProductId(id) {
+  return String(id || "").trim();
+}
+
+function isUniqueProductId(id, exceptId = null) {
+  const pid = sanitizeProductId(id);
+  if (!pid) return false;
+  return !state.products.some(p => p.productId === pid && p.productId !== exceptId);
+}
+
+function resetProductDraft() {
+  state.adminProducts.editingId = null;
+  state.adminProducts.draft = {
+    productId: "",
+    name: "",
+    price: "",
+    stock: "",
+    description: ""
+  };
+}
+
+function startCreateProduct() {
+  resetProductDraft();
+  render();
+}
+
+function startEditProduct(productId) {
+  const p = state.products.find(x => x.productId === productId);
+  if (!p) return;
+  state.adminProducts.editingId = p.productId;
+  state.adminProducts.draft = {
+    productId: p.productId,
+    name: p.name ?? "",
+    price: String(p.price ?? ""),
+    stock: String(resolveStockValue(p) ?? ""),
+    description: p.description ?? ""
+  };
+  render();
+}
+
+function cancelEditProduct() {
+  resetProductDraft();
+  render();
+}
+
+function setProductDraftField(field, value) {
+  if (!state.adminProducts?.draft) return;
+  state.adminProducts.draft[field] = value;
+}
+
+function saveProductDraft() {
+  if (!requireAdmin({ type: "admin_products_save" })) return;
+
+  const editingId = state.adminProducts.editingId; // null => create
+  const d = state.adminProducts.draft || {};
+
+  const productId = sanitizeProductId(d.productId);
+  // NOTE: other screens render name/description without escaping,
+  // so keep stored strings safe (minimal sanitize; no renderer changes).
+  const safeText = (s) =>
+    String(s ?? "")
+      .replace(/[<>]/g, "")
+      .trim();
+
+  const name = safeText(d.name);
+  const priceNum = Number(String(d.price || "").trim());
+  const stockNum = Number(String(d.stock || "").trim());
+  const description = safeText(d.description);
+
+  if (!productId) {
+    alert("⚠️ กรุณากรอก Product ID");
+    return;
+  }
+  // IMPORTANT: productId is used inside inline onclick in other screens (list/detail) without escaping.
+  // Restrict to safe characters to prevent broken JS / injection.
+  // Allow examples like P-001, SKU_12, item-99
+  if (!/^[A-Za-z0-9_-]+$/.test(productId)) {
+    alert("⚠️ Product ID ใช้ได้เฉพาะ A-Z, 0-9, _ และ - (ห้ามเว้นวรรค/อักขระพิเศษ)");
+    return;
+  }
+  if (!name) {
+    alert("⚠️ กรุณากรอกชื่อสินค้า");
+    return;
+  }
+  if (!Number.isFinite(priceNum) || priceNum < 0) {
+    alert("⚠️ ราคาไม่ถูกต้อง");
+    return;
+  }
+  if (!Number.isFinite(stockNum) || stockNum < 0) {
+    alert("⚠️ สต๊อกไม่ถูกต้อง");
+    return;
+  }
+
+  // uniqueness
+  if (!isUniqueProductId(productId, editingId)) {
+    alert("⚠️ Product ID ซ้ำในระบบ");
+    return;
+  }
+
+  if (editingId) {
+    const idx = state.products.findIndex(p => p.productId === editingId);
+    if (idx === -1) return;
+    const oldId = editingId;
+    const newId = productId;
+    state.products[idx] = {
+      ...state.products[idx],
+      productId,
+      name,
+      price: priceNum,
+      stock: stockNum,
+      description
+    };
+
+    // keep selectedProduct pointer consistent if editing the currently viewed product
+    if (state.selectedProduct?.productId === oldId) {
+      state.selectedProduct = state.products[idx];
+    }
+  
+    // FLOW SAFETY: if productId changed, update cart references so checkout won't break
+    if (oldId !== newId && Array.isArray(state.cart) && state.cart.length) {
+      state.cart.forEach(item => {
+        if (item && item.productId === oldId) item.productId = newId;
+      });
+    }  
+  } else {
+    state.products.push({
+      productId,
+      name,
+      price: priceNum,
+      stock: stockNum,
+      description
+    });
+  }
+
+  saveProducts();
+  resetProductDraft();
+  render();
+}
+
+function deleteProduct(productId) {
+  if (!requireAdmin({ type: "admin_products_delete", productId })) return;
+  const p = state.products.find(x => x.productId === productId);
+  if (!p) return;
+
+  const ok = confirm(`ต้องการลบสินค้า "${p.name}" (${p.productId}) หรือไม่?`);
+  if (!ok) return;
+
+  // remove from products
+  state.products = state.products.filter(x => x.productId !== productId);
+
+  // minimal flow safety: remove from cart to avoid broken checkout
+  if (Array.isArray(state.cart) && state.cart.length) {
+    state.cart = state.cart.filter(i => i.productId !== productId);
+  }
+
+  // if currently viewing this product, go back to list
+  if (state.selectedProduct?.productId === productId) {
+    state.selectedProduct = null;
+    state.view.screen = "list";
+  }
+
+  saveProducts();
+  // if we were editing this product, cancel edit
+  if (state.adminProducts.editingId === productId) {
+    resetProductDraft();
+  }
+  render();
+}
+
+function adjustProductStock(productId, delta) {
+  if (!requireAdmin({ type: "admin_products_stock_adjust", productId })) return;
+  const p = state.products.find(x => x.productId === productId);
+  if (!p) return;
+  const cur = resolveStockValue(p);
+  const next = Math.max(0, (Number.isFinite(cur) ? cur : 0) + Number(delta || 0));
+  p.stock = next;
+  saveProducts();
+  render();
+}
+
+function renderAdminProducts() {
+  const app = document.getElementById("app");
+
+  // guard: admin only
+  if (!state.admin.loggedIn) {
+    state.view.screen = "list";
+    render();
+    return;
+  }
+
+  const d = state.adminProducts.draft || {};
+  const editingId = state.adminProducts.editingId;
+
+  // escape helper for safe inline JS string usage in onclick
+  const escJS = (s) =>
+    String(s ?? "")
+      .replace(/\\/g, "\\\\")
+      .replace(/'/g, "\\'");
+
+  // escape helper for safe HTML injection (text/attribute)
+  const escHTML = (s) =>
+    String(s ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+
+  const rows = (state.products || [])
+    .slice()
+    .sort((a, b) => String(a.productId).localeCompare(String(b.productId)))
+    .map(p => {
+      const stock = resolveStockValue(p);
+      const pid = escJS(p.productId);
+      return `
+        <div class="card" style="cursor:default;">
+          <div class="name">${escHTML(p.name)}</div>
+          <div class="price">ID: ${escHTML(p.productId)} • ราคา: ${escHTML(p.price)} • สต๊อก: ${Number.isFinite(stock) ? stock : "-"}</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+            <button class="btn-secondary" onclick="startEditProduct('${pid}')">✏️ แก้ไข</button>
+            <button class="btn-secondary" onclick="adjustProductStock('${pid}', 1)">+1</button>
+            <button class="btn-secondary" onclick="adjustProductStock('${pid}', -1)">-1</button>
+            <button class="danger" onclick="deleteProduct('${pid}')">🗑️ ลบ</button>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+
+  app.innerHTML = `
+    <section class="admin-orders">
+      <h2>🛠️ จัดการสินค้า (Admin)</h2>
+
+      <div class="muted" style="margin-bottom:10px;">
+        โหมด: ${editingId ? `แก้ไข (${editingId})` : "เพิ่มสินค้าใหม่"}
+      </div>
+
+      <div style="display:grid;gap:10px;margin-bottom:14px;">
+        <label class="muted">Product ID</label>
+        <input type="text"
+          value="${escHTML(String(d.productId ?? ""))}"
+          oninput="setProductDraftField('productId', this.value)"
+          placeholder="เช่น P-004" />
+
+        <label class="muted">ชื่อสินค้า</label>
+        <input type="text"
+          value="${escHTML(String(d.name ?? ""))}"
+          oninput="setProductDraftField('name', this.value)"
+          placeholder="ชื่อสินค้า" />
+
+        <label class="muted">ราคา</label>
+        <input type="text"
+          value="${escHTML(String(d.price ?? ""))}"
+          oninput="setProductDraftField('price', this.value)"
+          placeholder="เช่น 350" />
+
+        <label class="muted">สต๊อก</label>
+        <input type="text"
+          value="${escHTML(String(d.stock ?? ""))}"
+          oninput="setProductDraftField('stock', this.value)"
+          placeholder="เช่น 25" />
+
+        <label class="muted">คำอธิบาย</label>
+        <input type="text"
+          value="${escHTML(String(d.description ?? ""))}"
+          oninput="setProductDraftField('description', this.value)"
+          placeholder="รายละเอียดสินค้า (optional)" />
+      </div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+        <button class="btn-primary" onclick="saveProductDraft()">💾 บันทึก</button>
+        ${editingId
+          ? `<button class="btn-secondary" onclick="cancelEditProduct()">ยกเลิกแก้ไข</button>`
+          : `<button class="btn-secondary" onclick="startCreateProduct()">ล้างฟอร์ม</button>`
+        }
+        <button class="btn-secondary" onclick="state.view.screen='admin'; render();">← กลับ Admin</button>
+      </div>
+
+      <h3>📦 สินค้าทั้งหมด (${(state.products || []).length})</h3>
+      <div class="product-list" style="margin-top:10px;">
+        ${rows || "<p>ยังไม่มีสินค้า</p>"}
+      </div>
+    </section>
+  `;
 }    
 
 function increaseQty() {
