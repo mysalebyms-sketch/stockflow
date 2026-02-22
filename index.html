@@ -711,7 +711,7 @@ function renderHeader() {
      const base = state.analytics.rangeDays === 7
        ? trendNow.last7.byAction
        : trendNow.last30.byAction;
-     const rows = buildDiffMatrix({}, base);
+     const rows = buildDiffMatrix(base, {});
      buildTopAlerts(rows).forEach(a => {
      alertStats[a.severity]++;
    });
@@ -778,7 +778,7 @@ function openAlertAudit(severity) {
    state.analytics.rangeDays === 7
      ? trendNow.last7.byAction
      : trendNow.last30.byAction;
- const rows = buildDiffMatrix({}, base);
+ const rows = buildDiffMatrix(base, {});
  const ranked = buildTopAlerts(rows)
    .filter(a => a.severity === severity)
    .sort((a, b) => {
@@ -1585,7 +1585,7 @@ ${state.audit.collapsedActions[action]
             `).join("")}
           `).join("")
       }
-      <button onclick="renderAdminOrders()">← กลับ Admin</button>
+      <button onclick="state.view.screen='admin'; render();">← กลับ Admin</button>
     </section>
   `;
 
@@ -2723,7 +2723,7 @@ function archiveOrder(orderId) {
   order.archived = true;
   saveOrders();
   alert("📦 Order ถูก Archive แล้ว");
-  renderAdminOrders();
+  state.view.screen = "admin"; render();
 }
 
 function restoreOrder(orderId) {
@@ -2735,7 +2735,7 @@ function restoreOrder(orderId) {
   order.archived = false;
   saveOrders();
   alert("♻️ Order ถูก Restore แล้ว");
-  renderAdminOrders();
+  state.view.screen = "admin"; render();
 } 
 
 function markOrderPaid(orderId) {
@@ -3097,7 +3097,7 @@ function toggleBatchOrder(orderId, checked) {
 function toggleBatchShippedOnly(value) {
   state.batchSelection.shippedOnly = value;
   state.batchSelection.selectedOrderIds = [];
-  renderAdminOrders();
+  render();
 }
 
  function exportOrdersPDFBatch(orderIds, options = {}) {
