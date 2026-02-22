@@ -2068,17 +2068,26 @@ function getActionLabel(action) {
 <script defer data-vendor="html2canvas@1.4.1">
   (function () {
     var expected = "1.4.1";
+
     // Try pinned first, then common alternatives (path/base variations)
+    // (Added non-min builds too, in case your vendor file isn't .min.js)
     var candidates = [
       "assets/vendor/html2canvas-1.4.1.min.js",
       "./assets/vendor/html2canvas-1.4.1.min.js",
+      "assets/vendor/html2canvas-1.4.1.js",
+      "./assets/vendor/html2canvas-1.4.1.js",
       "assets/vendor/html2canvas.min.js",
-      "./assets/vendor/html2canvas.min.js"
+      "./assets/vendor/html2canvas.min.js",
+      "assets/vendor/html2canvas.js",
+      "./assets/vendor/html2canvas.js"
     ];
 
-    function verify() {
+    // silent=true => don't spam console during probing
+    function verify(silent) {
       if (typeof window.html2canvas !== "function") {
-        console.error("[Vendor] html2canvas is missing (offline/local asset check failed)");
+        if (!silent) {
+          console.error("[Vendor] html2canvas is missing (offline/local asset check failed)");
+        }
         return false;
       }
       var v = window.html2canvas && window.html2canvas.version;
@@ -2089,23 +2098,29 @@ function getActionLabel(action) {
     }
 
     function loadNext(i) {
-      if (verify()) return;
+      // Probe silently; only print error once at final failure
+      if (verify(true)) return;
+
       if (i >= candidates.length) {
+        verify(false);
         console.error("[Vendor] Failed to load html2canvas (checked):", candidates.join(", "));
         return;
       }
+
       var src = candidates[i];
       var s = document.createElement("script");
       s.defer = true;
       s.src = src;
+
       s.onload = function () {
-        // verify after this candidate loaded
-        if (!verify()) loadNext(i + 1);
+        if (!verify(true)) loadNext(i + 1);
       };
+
       s.onerror = function () {
         console.warn("[Vendor] Failed to load html2canvas candidate:", src);
         loadNext(i + 1);
       };
+
       document.head.appendChild(s);
     }
 
