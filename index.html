@@ -2068,9 +2068,6 @@ function getActionLabel(action) {
 <script defer data-vendor="html2canvas@1.4.1">
   (function () {
     var expected = "1.4.1";
-
-    // Try pinned first, then common alternatives (path/base variations)
-    // (Added non-min builds too, in case your vendor file isn't .min.js)
     var candidates = [
       "assets/vendor/html2canvas-1.4.1.min.js",
       "./assets/vendor/html2canvas-1.4.1.min.js",
@@ -2082,14 +2079,8 @@ function getActionLabel(action) {
       "./assets/vendor/html2canvas.js"
     ];
 
-    // silent=true => don't spam console during probing
-    function verify(silent) {
-      if (typeof window.html2canvas !== "function") {
-        if (!silent) {
-          console.error("[Vendor] html2canvas is missing (offline/local asset check failed)");
-        }
-        return false;
-      }
+    function verify() {
+      if (typeof window.html2canvas !== "function") return false;
       var v = window.html2canvas && window.html2canvas.version;
       if (typeof v === "string" && v !== expected) {
         console.warn("[Vendor] html2canvas version mismatch:", v, "(expected", expected + ")");
@@ -2097,35 +2088,42 @@ function getActionLabel(action) {
       return true;
     }
 
-    function loadNext(i) {
-      // Probe silently; only print error once at final failure
-      if (verify(true)) return;
-
-      if (i >= candidates.length) {
-        verify(false);
-        console.error("[Vendor] Failed to load html2canvas (checked):", candidates.join(", "));
-        return;
-      }
-
-      var src = candidates[i];
-      var s = document.createElement("script");
-      s.defer = true;
-      s.src = src;
-
-      s.onload = function () {
-        if (!verify(true)) loadNext(i + 1);
-      };
-
-      s.onerror = function () {
-        console.warn("[Vendor] Failed to load html2canvas candidate:", src);
-        loadNext(i + 1);
-      };
-
-      document.head.appendChild(s);
+    function headOk(url) {
+      return fetch(url, { method: "HEAD", cache: "no-store" })
+        .then(function (r) { return !!r.ok; })
+        .catch(function () { return false; });
     }
 
-    // start
-    loadNext(0);
+    function loadScript(url) {
+      return new Promise(function (resolve) {
+        var s = document.createElement("script");
+        s.defer = true;
+        s.src = url;
+        s.onload = function () { resolve(true); };
+        s.onerror = function () { resolve(false); };
+        document.head.appendChild(s);
+      });
+    }
+
+    (async function () {
+      if (verify()) return;
+
+      for (var i = 0; i < candidates.length; i++) {
+        var src = candidates[i];
+
+        // ✅ Don't create <script> if file isn't there -> no GET 404 spam
+        var ok = await headOk(src);
+        if (!ok) continue;
+
+        var loaded = await loadScript(src);
+        if (loaded && verify()) return;
+      }
+
+      console.error(
+        "[Vendor] html2canvas is missing. Put file at one of these paths:",
+        candidates.join(", ")
+      );
+    })();
   })();
 </script>
   
