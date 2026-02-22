@@ -2224,7 +2224,12 @@ function requireAdmin(pendingAction) {
       } else {
         state.ui.pendingAction = { ...pendingAction, id };
       }
-   }
+   } else {
+      // 🔴 CHANGED: ป้องกัน “ghost resume”
+      // ถ้าถูกเรียกโดยไม่ส่ง pendingAction ให้เคลียร์งานค้างเก่า
+      state.ui.pendingAction = null;
+      state.ui.pendingActionId = null;
+    }
     openLogin();
     return false;
   }
