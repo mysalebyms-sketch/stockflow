@@ -2533,8 +2533,9 @@ function addToCart() {
   const currentQtyInCart = existing ? existing.qty : 0;
  const nextQty = currentQtyInCart + qty;
 
- if (typeof p.stock === "number" && nextQty > p.stock) {
-   alert(`⚠️ สินค้ามีในสต๊อกเพียง ${p.stock} ชิ้น`);
+ const stock = Number(p.stock);
+ if (Number.isFinite(stock) && nextQty > stock) {
+   alert(`⚠️ สินค้ามีในสต๊อกเพียง ${stock} ชิ้น`);
    return false;
  }
 
@@ -2594,9 +2595,12 @@ function submitOrderAPI() {
 
   for (const item of state.cart) {
    const p = state.products.find(prod => prod.productId === item.productId);
-   if (p && typeof p.stock === "number" && item.qty > p.stock) {
-     alert(`⚠️ สินค้า ${p.name} มีไม่พอในสต๊อก`);
-     return;
+   if (p) {
+     const stock = Number(p.stock);
+     if (Number.isFinite(stock) && item.qty > stock) {
+       alert(`⚠️ สินค้า ${p.name} มีไม่พอในสต๊อก`);
+       return;
+     }
    }
  }
 
@@ -2621,9 +2625,12 @@ state.orders.push({
 
 state.cart.forEach(item => {
    const p = state.products.find(prod => prod.productId === item.productId);
-   if (p && typeof p.stock === "number") {
-    p.stock = Math.max(0, p.stock - item.qty);
-  }
+   if (p) {
+     const stock = Number(p.stock);
+     if (Number.isFinite(stock)) {
+       p.stock = Math.max(0, stock - item.qty);
+     }
+   }
  });    
 
     saveOrders();
