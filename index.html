@@ -655,6 +655,7 @@ input:focus, select:focus{
        GLOBAL STATE (SINGLE SOURCE)
     =============================== */
 const STORAGE_KEY = "stockviewer.orders";
+const PRODUCTS_KEY = "stockviewer.products";    
 const AUDIT_FILTER_KEY = "stockviewer.audit.filters";    
 const AUDIT_PRESET_KEY = "stockviewer.audit.presets";   
 const ANALYTICS_SNAPSHOT_KEY = "stockviewer.analytics.snapshots";  
@@ -808,6 +809,34 @@ function saveOrders() {
     console.warn("Failed to save orders", e);
   }
 }
+
+
+function loadProducts() {
+  try {
+    const raw = localStorage.getItem(PRODUCTS_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.version === 1 && Array.isArray(parsed.products)) {
+      state.products = parsed.products;
+    }
+  } catch (e) {
+    console.warn("Failed to load products", e);
+  }
+}
+
+function saveProducts() {
+  try {
+    localStorage.setItem(
+      PRODUCTS_KEY,
+      JSON.stringify({
+        version: 1,
+        products: state.products
+      })
+    );
+  } catch (e) {
+    console.warn("Failed to save products", e);
+  }
+}    
 
  function loadAuditFilter() {
    try {
@@ -3019,6 +3048,7 @@ state.cart.forEach(item => {
    }
  });    
 
+    saveProducts();
     saveOrders();
 
     resetAfterOrder();
@@ -3590,6 +3620,7 @@ const currentId = orderIds[index];
     
 function boot() {
    loadOrders();
+   loadProducts();
    loadAuditFilter();
    loadAuditCollapsedActions();
    loadAnalyticsPrefs();
@@ -3619,6 +3650,7 @@ if (!state.products || state.products.length === 0) {
       description: "เก็บความเย็นได้ 6-8 ชั่วโมง เหมาะสำหรับพกพา"
     }
   ];
+   saveProducts();
 }
    renderHeader();
    render();
