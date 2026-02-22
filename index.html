@@ -2527,10 +2527,22 @@ function resolveStockValue(p) {
   const raw =
     p.stock ??
     p.Stock ??
+    p.stockQty ??
+    p.stockCount ??
+    p.inventory ??
+    p.inStock ??
     p.available ??
     p.remaining ??
     p.qty ??
     p.quantity;
+
+  // normalize string like "10", "10 ชิ้น", "10pcs", "1,000"
+  if (typeof raw === "string") {
+    const cleaned = raw.trim().replace(/,/g, "").match(/-?\d+(\.\d+)?/);
+    const n = cleaned ? Number(cleaned[0]) : NaN;
+    return Number.isFinite(n) ? n : NaN;
+  }
+
   const n = Number(raw);
   return Number.isFinite(n) ? n : NaN;
 } 
