@@ -2064,7 +2064,30 @@ function getActionLabel(action) {
 </script>
 
 <!-- PNG Export Engine (production-locked / self-host) -->
-<script defer src="assets/vendor/html2canvas.min.js"></script>
+<!-- LOCK: html2canvas v1.4.1 (pinned filename to prevent silent replacement) -->
+<script
+  defer
+  src="assets/vendor/html2canvas-1.4.1.min.js"
+  data-vendor="html2canvas@1.4.1"
+  onerror="console.error('[Vendor] Failed to load html2canvas (local asset)')"
+></script>
+
+<!-- Verify vendor load (runs after deferred vendor script, in-order) -->
+<script defer>
+  (function () {
+    var expected = "1.4.1";
+    var ok = (typeof window.html2canvas === "function");
+    if (!ok) {
+      console.error("[Vendor] html2canvas is missing (offline/local asset check failed)");
+      return;
+    }
+    // Optional version check (only if library exposes it)
+    var v = window.html2canvas && window.html2canvas.version;
+    if (typeof v === "string" && v !== expected) {
+      console.warn("[Vendor] html2canvas version mismatch:", v, "(expected", expected + ")");
+    }
+  })();
+</script>
   
   <script>
     /* ===============================
