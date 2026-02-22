@@ -2520,6 +2520,21 @@ function confirmQty() {
   render(); // refresh badge / screen
 }
 
+// STOCK RESOLVE (guard against missing/renamed fields)
+function resolveStockValue(p) {
+  if (!p || typeof p !== "object") return NaN;
+  // support common field names (keep 'stock' first priority)
+  const raw =
+    p.stock ??
+    p.Stock ??
+    p.available ??
+    p.remaining ??
+    p.qty ??
+    p.quantity;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : NaN;
+} 
+
 function addToCart() {
   const p = state.selectedProduct;
   const qty = state.view.qty;
@@ -2533,8 +2548,12 @@ function addToCart() {
   const currentQtyInCart = existing ? existing.qty : 0;
  const nextQty = currentQtyInCart + qty;
 
- const stock = Number(p.stock);
- if (Number.isFinite(stock) && nextQty > stock) {
+ const stock = resolveStockValue(p);
+ if (!Number.isFinite(stock)) {
+   alert("⚠️ ไม่พบข้อมูลสต๊อกของสินค้า (ไม่สามารถสั่งซื้อได้)");
+   return false;
+ }
+ if (nextQty > stock) {
    alert(`⚠️ สินค้ามีในสต๊อกเพียง ${stock} ชิ้น`);
    return false;
  }
@@ -2595,12 +2614,18 @@ function submitOrderAPI() {
 
   for (const item of state.cart) {
    const p = state.products.find(prod => prod.productId === item.productId);
-   if (p) {
-     const stock = Number(p.stock);
-     if (Number.isFinite(stock) && item.qty > stock) {
-       alert(`⚠️ สินค้า ${p.name} มีไม่พอในสต๊อก`);
-       return;
-     }
+   if (!p) {
+     alert(`⚠️ ไม่พบสินค้าในระบบสำหรับรายการในตะกร้า (productId: ${item.productId})`);
+     return;
+   }
+   const stock = resolveStockValue(p);
+   if (!Number.isFinite(stock)) {
+     alert(`⚠️ ไม่พบข้อมูลสต๊อกของสินค้า ${p.name} (ไม่สามารถสั่งซื้อได้)`);
+     return;
+   }
+   if (item.qty > stock) {
+     alert(`⚠️ สินค้า ${p.name} มีไม่พอในสต๊อก`);
+     return;
    }
  }
 
@@ -2626,9 +2651,17 @@ state.orders.push({
 state.cart.forEach(item => {
    const p = state.products.find(prod => prod.productId === item.productId);
    if (p) {
-     const stock = Number(p.stock);
+     const stock = resolveStockValue(p);
      if (Number.isFinite(stock)) {
-       p.stock = Math.max(0, stock - item.qty);
+       const next = Math.max(0, stock - item.qty);
+       // write back to canonical field
+       p.stock = next;
+       // keep original field in sync (only if it exists on the object)
+       if ("qty" in p) p.qty = next;
+       if ("quantity" in p) p.quantity = next;
+       if ("available" in p) p.available = next;
+       if ("remaining" in p) p.remaining = next;
+       if ("Stock" in p) p.Stock = next;
      }
    }
  });    
