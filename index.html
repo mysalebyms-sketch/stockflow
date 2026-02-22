@@ -70,7 +70,10 @@
   ================================================== -->
   <style id="base-style">
     /* reset + body + typography */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { height: 100%; }
     body {
+      margin: 0;
       font-family: "Sarabun", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Thai", "Helvetica Neue", Arial, sans-serif;
       color: var(--gray-900);
       background: var(--white);
@@ -80,6 +83,10 @@
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
     }
+    
+    /* iOS-like touch */
+    :where(button, a, input, select) { -webkit-tap-highlight-color: transparent; }
+    img { max-width: 100%; height: auto; display: block; }
   </style>
 
   <!-- =================================================
@@ -205,6 +212,8 @@
   border-radius: var(--r-sm);
   font-size: 11px;
   font-weight: 600;
+  cursor: pointer;
+  user-select: none;
 }
 
 .alert-critical {
@@ -254,9 +263,10 @@
 
 .audit-action {
   position: sticky;
-  top: 0;
+  /* avoid overlap with sticky iOS header */
+  top: calc(var(--header-h) + var(--header-safe-top));
   background: var(--white);
-  z-index: 2;
+  z-index: 10;
   padding: 6px 0;
   cursor: pointer;
 }    
@@ -344,6 +354,271 @@ body.no-scroll {
 .qty-picker {
   padding: 16px;
 }
+
+/* =================================================
+   iOS POLISH (STEP 6) — minimal + consistent
+   (only UI look/feel, no flow changes)
+================================================= */
+/* expose header metrics globally so sticky subheaders can reference them */
+:root{
+  --header-safe-top: env(safe-area-inset-top, 0px);
+  --header-h: 64px; /* closer to current header paddings (more reliable) */
+}
+    
+/* Top Bar */
+#app-header{
+  position: sticky;
+  top: var(--header-safe-top);
+  z-index: 50;
+  background: rgba(255,255,255,.78);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(229,231,235,.75);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+}
+
+/* if header grows, allow manual tweak by changing --header-h only */
+    
+#app-header .title{
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: .2px;
+}
+#app-header .actions{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+}
+#app-header .actions > span{
+  color: var(--gray-600);
+  font-size: 13px;
+}
+
+/* Main container */
+#app{
+  padding: 14px 16px 28px;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+/* Cards */
+.card{
+  position: relative;
+  background: rgba(255,255,255,.92);
+  border: 1px solid rgba(229,231,235,.9);
+  border-radius: 18px;
+  box-shadow: 0 10px 28px rgba(17,24,39,.08);
+  padding: 14px 14px;
+  transition: transform 120ms ease, box-shadow 160ms ease;
+  cursor: pointer;
+  user-select: none;
+}
+.card:active{
+  transform: scale(.985);
+  box-shadow: 0 6px 18px rgba(17,24,39,.10);
+}
+.card .name{ font-weight: 700; font-size: 16px; }
+.card .price{ color: var(--gray-600); margin-top: 2px; font-size: 13px; }
+.card .badge{
+  position:absolute;
+  top: 10px;
+  right: 10px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--primary);
+  box-shadow: 0 8px 18px rgba(37,99,235,.22);
+}
+
+/* Product list layout */
+.product-list{
+  display: grid;
+  gap: 12px;
+}
+
+/* Buttons (iOS feel) */
+button{
+  font-family: inherit;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+
+/* ✅ Default button style (when no class is provided) */
+#app :where(button):not(.btn-primary):not(.btn-secondary):not(.danger){
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 14px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  background: rgba(243,244,246,.85);
+  color: var(--gray-900);
+  border: 1px solid rgba(229,231,235,.9);
+  transition: transform 120ms ease, filter 120ms ease, background 160ms ease;
+}
+#app :where(button):not(.btn-primary):not(.btn-secondary):not(.danger):active{
+  transform: scale(.985);
+}
+
+/* Back button in detail screen */
+.product-detail .back{
+  margin-bottom: 10px;
+}
+    
+.btn-primary,
+.btn-secondary,
+#app-header button,
+.audit-export button,
+.analytics-export button,
+.admin-orders button,
+.admin-order-detail button{
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 14px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  transition: transform 120ms ease, filter 120ms ease, background 160ms ease;
+}
+
+.btn-primary,
+#app-header button{
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 12px 26px rgba(37,99,235,.24);
+}
+.btn-primary:active,
+#app-header button:active{
+  transform: scale(.98);
+  filter: brightness(.96);
+}
+
+.btn-secondary{
+  background: rgba(243,244,246,.85);
+  color: var(--gray-900);
+  border: 1px solid rgba(229,231,235,.9);
+}
+.btn-secondary:active{ transform: scale(.985); }
+
+/* Danger button (your .danger already used) */
+button.danger{
+  background: rgba(220,38,38,.1);
+  color: var(--danger);
+  border: 1px solid rgba(220,38,38,.25);
+}
+
+/* Inputs / Select */
+input[type="text"],
+input[type="date"],
+input[type="password"],
+select{
+  width: 100%;
+  border-radius: 14px;
+  padding: 10px 12px;
+  border: 1px solid rgba(229,231,235,.95);
+  background: rgba(255,255,255,.9);
+  font-size: 14px;
+  outline: none;
+}
+input:focus, select:focus{
+  border-color: rgba(37,99,235,.55);
+  box-shadow: 0 0 0 4px rgba(37,99,235,.15);
+}
+
+/* ✅ Inline selects shouldn't stretch full width */
+.dpi-selector{
+  display:flex;
+  align-items:center;
+  gap: 8px;
+}
+.dpi-selector select{
+  width: auto;
+}    
+
+/* Sections styling (audit/analytics/admin + screens) */
+.admin-audit,
+.admin-analytics,
+.admin-orders,
+.admin-order-detail,
+.product-detail,
+.cart,
+.success{
+  background: rgba(255,255,255,.92);
+  border: 1px solid rgba(229,231,235,.9);
+  border-radius: 18px;
+  box-shadow: 0 10px 28px rgba(17,24,39,.06);
+  padding: 14px;
+}
+.admin-audit h2,
+.admin-analytics h2,
+.admin-orders h2,
+.admin-order-detail h2{
+  margin: 0 0 10px;
+}
+
+/* Floating cart */
+.floating-cart{
+  position: fixed;
+  right: 16px;
+  bottom: 18px;
+  z-index: 60;
+  background: rgba(17,24,39,.92);
+  color: #fff;
+  border-radius: 999px;
+  padding: 12px 14px;
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  box-shadow: 0 18px 40px rgba(0,0,0,.22);
+}
+.floating-cart .count{
+  background: var(--primary);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 800;
+}
+.floating-cart:active{ transform: scale(.985); }
+
+/* Qty Picker controls */
+.qty-control{
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 10px 0 12px;
+}
+.qty-control button{
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(243,244,246,.9);
+  border: 1px solid rgba(229,231,235,.9);
+  font-size: 18px;
+  font-weight: 900;
+}
+.qty-control button:active{ transform: scale(.98); }
+.qty-control .qty{
+  min-width: 56px;
+  text-align:center;
+  font-weight: 800;
+  font-size: 18px;
+}    
  
   </style>
 
